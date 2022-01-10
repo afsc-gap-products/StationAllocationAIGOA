@@ -1,3 +1,6 @@
+#' Query available Aleutian Islands stations
+#'
+#' @description
 #' This script is a translation of the PL/SQL procedure stored on the AI schema
 #' in Oracle. It utilizes the functionality of creating/dropping tables in
 #' Oracle using sqlSave in place of the Global Temporary table strategy
@@ -10,19 +13,29 @@
 #'
 #' @author Ned Laman \email{ned.laman@@noaa.gov}
 #'
+#' @param channel open connection object. Created from RODBC::odbcConnect()
+#' @param schema character string. SQL schema name. Defaults to AIGOA_WORK_DATA
+#' @param pwrd character string. SQL password
+#' @param survey character string. Defaults to "AI" for Aleutian Islands
+#'
 #' @import \pkg{RODBC}
 #'
-#' @return A dataframe of candidate stations for Aleutian Islands bottom trawl
-#' surveys which includes the station centroid (lon & lat) in decimal degrees.
+#' @return A dataframe of candidate stations (field stationid) for Aleutian
+#'  Islands bottom trawl surveys which includes the station centroid (fields
+#'  longitude & latitude in decimal degrees) and stratum id.
+#'
 #'
 
 
-get.ai.stations <- function(channel = NA, schema = "AIGOA_WORK_DATA",
-                            pwrd = NA, survey = 'AI'){
+get.ai.stations <- function(channel = NA,
+                            schema = "AIGOA_WORK_DATA",
+                            pwrd = NA,
+                            survey = 'AI'){
 
   if(is.na(channel)){
     require(RODBC)
-    channel <- odbcConnect(dsn = "AFSC", uid = schema, pwd = pwrd, believeNRows = FALSE)
+    channel <- RODBC::odbcConnect(dsn = "AFSC", uid = schema,
+                           pwd = pwrd, believeNRows = FALSE)
     close.channel = TRUE
   }else{
     close.channel <- FALSE
