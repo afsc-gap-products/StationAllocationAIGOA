@@ -21,14 +21,20 @@ vessel.allocation <- function(stations, strata, survey){
   cat("Allocating selected gridcells between vessels...\n")
 
   # Import the vessel data from the Excel spreadsheet
-  vessel.names.filename <- loadWorkbook(paste("g:\\", survey.name, "\\survey planning\\", survey, ".vessel.names.xlsx", sep = ""))
+  # vessel.names.filename <- loadWorkbook(paste("g:\\", survey.name, "\\survey planning\\", survey, ".vessel.names.xlsx", sep = ""))
+  vessel.names.filename <-
+    loadWorkbook(paste0("data/", survey, ".vessel.names.xlsx"))
+
   vessels <- readWorksheet(vessel.names.filename, sheet = "Sheet1")
   names(vessels) <- gsub("#", ".", names(vessels))
 
   # Import the vessel strata assignment data from the Excel spreadsheet
+  # vessel.strata.assignments.filename <-
+  #   loadWorkbook(paste("g:\\", survey.name, "\\survey planning\\", survey,
+  #                      ".vessel.strata.assignments.xlsx", sep = ""))
   vessel.strata.assignments.filename <-
-    loadWorkbook(paste("g:\\", survey.name, "\\survey planning\\", survey,
-                       ".vessel.strata.assignments.xlsx", sep = ""))
+    loadWorkbook(paste0("data/", survey, ".vessel.strata.assignments.xlsx"))
+
   vessel.strata.assignments <- readWorksheet(vessel.strata.assignments.filename, sheet = "Sheet1")
   names(vessel.strata.assignments) <- gsub("#", ".", names(vessel.strata.assignments))
 
