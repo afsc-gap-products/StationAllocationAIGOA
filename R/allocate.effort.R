@@ -149,8 +149,10 @@ allocate.effort <- function(survey,
   #
   cat("\nRetrieving species to use in analysis from excel spreadsheet...\n")
 
-  planning.species.filename <- paste("g:\\", survey.name, "\\survey planning\\",
-                                     survey, ".planning.species.xlsx", sep = "")
+  # planning.species.filename <- paste("g:\\", survey.name, "\\survey planning\\",
+  #                                    survey, ".planning.species.xlsx", sep = "")
+  planning.species.filename <- paste0("data/", survey, ".planning.species.xlsx")
+
   planning.species.channel <- loadWorkbook(planning.species.filename)
   planning.species <- readWorksheet(planning.species.channel, sheet = "Sheet1")
 
