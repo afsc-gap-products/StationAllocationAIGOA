@@ -81,12 +81,12 @@ allocate.effort <- function(survey,
   ## Error here in 2013 allocation where xls worksheet had an extra column
   ## that was blank in the last position yielding a vector of NAs that blew
   ## stuff up downstream
-  # vessel.strata.assignments.filename <-
-  #   loadWorkbook(paste("g:\\", survey.name, "\\survey planning\\",
-  #                      survey, ".vessel.strata.assignments.xlsx",
-  #                      sep = ""))
   vessel.strata.assignments.filename <-
-    loadWorkbook(paste0("data/", survey, ".vessel.strata.assignments.xlsx"))
+    loadWorkbook(paste("g:\\", survey.name, "\\survey planning\\",
+                       survey, ".vessel.strata.assignments.xlsx",
+                       sep = ""))
+  # vessel.strata.assignments.filename <-
+  #   loadWorkbook(paste0("data/", survey, ".vessel.strata.assignments.xlsx"))
 
   vessel.strata.assignments <-
     readWorksheet(vessel.strata.assignments.filename,
@@ -152,9 +152,9 @@ allocate.effort <- function(survey,
   #
   cat("\nRetrieving species to use in analysis from excel spreadsheet...\n")
 
-  # planning.species.filename <- paste("g:\\", survey.name, "\\survey planning\\",
-  #                                    survey, ".planning.species.xlsx", sep = "")
-  planning.species.filename <- paste0("data/", survey, ".planning.species.xlsx")
+  planning.species.filename <- paste("g:\\", survey.name, "\\survey planning\\",
+                                     survey, ".planning.species.xlsx", sep = "")
+  # planning.species.filename <- paste0("data/", survey, ".planning.species.xlsx")
 
   planning.species.channel <- loadWorkbook(planning.species.filename)
   planning.species <- readWorksheet(planning.species.channel, sheet = "Sheet1")
