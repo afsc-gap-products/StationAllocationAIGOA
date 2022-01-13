@@ -140,7 +140,7 @@ goa.planning <- function(selection.type = "random", min.size = 5){
   writeWorksheet(xl.wb, survey.plan, sheet = "StationAllocation")
   saveWorkbook(xl.wb)
 
-  assign("default.output.file", output.file, env = .GlobalEnv)
+  # assign("default.output.file", output.file, env = .GlobalEnv)
 
   ## Write copy of survey.plan to an Oracle table for Region & Year Station
   ## Allocation if table does not exist already, a vector of error language
