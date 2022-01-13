@@ -81,10 +81,13 @@ allocate.effort <- function(survey,
   ## Error here in 2013 allocation where xls worksheet had an extra column
   ## that was blank in the last position yielding a vector of NAs that blew
   ## stuff up downstream
+  # vessel.strata.assignments.filename <-
+  #   loadWorkbook(paste("g:\\", survey.name, "\\survey planning\\",
+  #                      survey, ".vessel.strata.assignments.xlsx",
+  #                      sep = ""))
   vessel.strata.assignments.filename <-
-    loadWorkbook(paste("g:\\", survey.name, "\\survey planning\\",
-                       survey, ".vessel.strata.assignments.xlsx",
-                       sep = ""))
+    loadWorkbook(paste0("data/", survey, ".vessel.strata.assignments.xlsx"))
+
   vessel.strata.assignments <-
     readWorksheet(vessel.strata.assignments.filename,
                   sheet="Sheet1")
