@@ -1,6 +1,6 @@
 # AIGOASurveyPlanning
 
-This package holds the functions used to allocate stations for the Aleutian Islands bottom trawl survey. The code was originally produced by Paul von Szalay and Ned Laman. This package is maintained by Zack Oyafuso and is intended to formalize the set of functions saved on the G drive (G:/GOA/R/survey planning/.RData).  
+This package holds the functions used to allocate stations for the Aleutian Islands bottom trawl survey. The code was originally produced by Paul von Szalay and Ned Laman. This package is maintained by Zack Oyafuso and is intended to formalize the set of functions saved on the G drive (G:/GOA/R/survey planning/.RData). 
 
 ## Packages Required
 
@@ -10,9 +10,11 @@ library(RODBC) ## connection to Oracle
 library(XLConnect) ## reading and writing Excel workbooks and sheets
 ```
 
+You also need to be connected to the VPN to connect to SQL Developer (is this right?) as well as the other data inputs in the G drive. 
+
 ## Inputs 
 
-goa.planning() is the main wrapper function that performs the allocations and consists of nested subfunctions. The function will ask for several user inputs before executing its main program:
+goa.planning() is the main wrapper function that performs the allocations and consists of nested subfunctions. You should be able to just run goa.planning() and the function will ask for several user inputs before executing its main program, including:
 
 * Survey name (AI/GOA/EBSSLOPE)
 
