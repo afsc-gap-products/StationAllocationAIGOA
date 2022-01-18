@@ -1,13 +1,12 @@
 # AIGOASurveyPlanning
 
-This package holds the functions used to allocate stations for the Aleutian Islands bottom trawl survey. The code was originally produced by Paul von Szalay and Ned Laman. This package is maintained by Zack Oyafuso and is intended to formalize the set of functions saved on the G drive (G:/GOA/R/survey planning/.RData). 
+This package holds the functions used to randomly draw and allocate survey stations for the Aleutian Islands bottom trawl survey. The code was originally produced by Paul von Szalay and Ned Laman. This package is maintained by Zack Oyafuso and is intended to formalize the set of functions saved on the G drive (G:/GOA/R/survey planning/.RData). Currently, the code is only functional for the Aleutian Islands survey. 
 
-## Packages Required
+## Install
 
 ```
-library(devtools) ## initial installation of package
-library(RODBC) ## connection to Oracle
-library(XLConnect) ## reading and writing Excel workbooks and sheets
+library(devtools)
+devtools::install_github("afsc-gap-products/AIGOASurveyPlanning")
 ```
 
 You also need to be connected to the VPN to connect to SQL Developer (is this right?) as well as the other data inputs in the G drive. 
