@@ -153,7 +153,7 @@ for (ispp in spp_names) { ## Loop over species -- start
       ## Fields for spatial (Omega) or spatiotemporal (epsilon) variation
       ## on the 1st or 2nd predictor
       FieldConfig = c( "Omega1" = "IID", "Epsilon1" = "IID",
-                       "Omega2" = "IID", "Epsilon2" = 0),
+                       "Omega2" = "IID", "Epsilon2" = "IID"),
       "Options" = c("Calculate_Range" = F,
                     "Calculate_effective_area" = F),
       ObsModel = c(2, 1),
