@@ -55,33 +55,12 @@ bathy <- SpaDES.tools::mergeRaster(split_bathy)
 rm(split_bathy, i)
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-##   Join haul data to get coordinates, depth, bottom and surface temperature
-##   Calculate effort: distance fished * net width
-##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# haul <- cbind(haul,
-#               # get haul midpoints
-#               geosphere::midPoint(cbind(haul$START_LONGITUDE,
-#                                         haul$START_LATITUDE),
-#                                   cbind(haul$END_LONGITUDE,
-#                                         haul$END_LATITUDE)))
-# haul$DATE <- as.Date(haul$START_TIME, format = "%d-%b-%y")
-# haul$MONTH <- lubridate::month(haul$DATE)
-# haul$DAY <- lubridate::day(haul$DATE)
-# haul$YEAR <- lubridate::year(haul$DATE)
-# haul$EFFORT <- haul$DISTANCE_FISHED * haul$NET_WIDTH * 0.001
-# haul <- haul %>% dplyr::select(HAULJOIN, SURFACE_TEMPERATURE,
-#                                GEAR_DEPTH, GEAR_TEMPERATURE,
-#                                LATITUDE = lat, LONGITUDE = lon,
-#                                DATE, DAY, MONTH, YEAR, EFFORT)
-# data <- inner_join(data, haul)
-
-##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Join species names
 ##   Select and rename columns, dropping rows with mising depths
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 species_codes <- dplyr::select(species_codes, -YEAR_ADDED)
 data <- inner_join(data, species_codes)
-data <- data %>% dplyr::select(YEAR, SURVEY = REGION,
+data <- data %>% dplyr::select(YEAR, SURVEY = REGION, HAULJOIN = HAULJOIN,
                                SURFACE_TEMPERATURE, GEAR_TEMPERATURE,
                                BOTTOM_DEPTH,
                                EFFORT, WEIGHT,
