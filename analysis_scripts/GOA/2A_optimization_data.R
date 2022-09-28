@@ -10,74 +10,93 @@
 rm(list = ls())
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##   Import Library
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+library(devtools)
+devtools::install_github(repo = "zoyafuso-NOAA/SamplingStrata")
+library(SamplingStrata)
+library(rgdal)
+library(raster)
+library(sp)
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Load the true density, true index, and spatial domain dataset
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-load(file = "data/GOA/prednll_VAST_models.RData")
+# load(file = "data/GOA/prednll_VAST_models.RData")
 grid_goa <- read.csv(file = "data/GOA/grid_goa.csv")
+D_gct <- readRDS("data/GOA/VAST_fit_D_gct.RDS")
+
+## Think about ways to put this in package!!
+updated_goa_strata <- rgdal::readOGR(dsn = "C:/Users/zack.oyafuso/Work/GitHub/Optimal_Allocation_GoA/products/updated_goa_strata/updated_goa_strata.shp")
+depth_mods <- read.csv("C:/Users/zack.oyafuso/Work/GitHub/Optimal_Allocation_GoA/products/depth_modifications.csv")
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Constants used throughout all scripts
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-## Years to use
-year_set <- 1996:2021
-years_included <- c(1, 4, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26)
-n_years <- length(years_included)
-
-## Number of sampling grids
-n_cells <- nrow(grid_goa)
-
-## Scientific and common names used in optimization
-common_names_all <- pred_jnll$spp_name
-
-ns_all <- length(common_names_all)
-
-spp_idx_opt <- c(25, 14, #cods
-                 1, 7, 18, 12, 24, 5, 15, #flatfishes
-                 16, 4, 23, 6, 13, 22 #rockfish types
-)
-common_names_opt <- common_names_all[spp_idx_opt]
-ns_opt <- length(common_names_opt)
-
-## Scientific and common names not used in optimization, but evaluated
-## when simulating surveys
-spp_idx_eval <- (1:ns_all)[-spp_idx_opt]
-common_names_eval <- common_names_all[spp_idx_eval]
-ns_eval <- length(common_names_eval)
-
-## Specify Management Districts
-districts <- data.frame("reg_area" = c("WRA", "CRA", "CRA", "ERA", "ERA"),
-                        "district" = c("West", "Chirikof", "Kodiak",
-                                       "Yakutat", "Southeast"),
-                        "domainvalue" = 1:5,
-                        "W_lon" = c(-170, -159, -154, -147, -140),
-                        "E_lon" = c(-159, -154, -147, -140, -132))
-
-district_vals <- cut(x = grid_goa$Lon,
-                     breaks = c(-170, -159, -154, -147, -140, -132),
-                     labels = 1:5)
-districts[, c("W_UTM", "E_UTM")] <-
-  do.call(rbind,tapply(X = grid_goa$E_km,
-                       INDEX = district_vals,
-                       FUN = range) )
-
-n_districts <- nrow(districts)
-
-## ranges of the spatial domain for plotting
-x_range <- diff(range(grid_goa$E_km))
-y_range <- diff(range(grid_goa$N_km))
-
 ## crs used
 lonlat_crs <- "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
 utm_crs <- "+proj=utm +zone=5N +units=km"
+n_years <- dim(D_gct)[3]
+n_spp <- dim(D_gct)[2]
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-##   Save Data, Species densities separately
+##   Assign grid points to the new strata
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-save(list = c("districts", "district_vals", "n_districts",
-              "ns_all", "ns_eval", "ns_opt", "lonlat_crs", "utm_crs",
-              "x_range", "y_range", "n_cells",
-              "common_names_all", "common_names_eval", "common_names_opt",
-              "spp_idx_eval", "spp_idx_opt",
-              "year_set", "years_included", "n_years"),
-     file = "data/GOA/optimization_data.RData")
+grid_goa_sp <- sp::SpatialPointsDataFrame(
+  coords = grid_goa[, c("Lon", "Lat")],
+  proj4string = sp::CRS(lonlat_crs),
+  data = data.frame(ID = 1:nrow(grid_goa)))
+grid_goa_sp <- sp::spTransform(x = grid_goa_sp,
+                               CRSobj = crs(updated_goa_strata))
+
+grid_goa_sp <- raster::intersect(x = grid_goa_sp,
+                                 y = updated_goa_strata)
+grid_goa_sp <- subset(x = grid_goa_sp,
+                      subset = STRATUM %in% depth_mods$stratum[depth_mods$used])
+
+grid_goa_sp <- sp::remove.duplicates(grid_goa_sp)
+
+removed_cells <- (1:n_cells)[-grid_goa_sp$ID]
+D_gct <- D_gct[-removed_cells, , ]
+n_cells <- dim(D_gct)[1]
+
+##################################################
+####   Our df will have fields for:
+####   domain: only one domain so the value is just 1
+####   id: unique ID for each sampling cell
+####   X1: strata variable 2: depth of cell (m)
+####   X2: strata variable 1: longitude in eastings (km). Because the
+####       optimization does not read in negative values, I shift the
+####       values so that the lowest value is 0
+####
+####   Variables used to more efficiently calcualte stratum variance
+####
+####   WEIGHT: number of observed years
+####   Y1, Y2, ... : density for a given cell summed across observed years
+####   Y1_SQ_SUM, Y2_SQ_SUM, ... : density-squared for a given cell,
+####           summed across observed years
+##################################################
+frame <- cbind(
+  data.frame(domainvalue = 1,
+             id = 1:n_cells,
+             WEIGHT = n_years),
+
+  matrix(data = apply(X = D_gct,
+                      MARGIN = 1:2,
+                      FUN = sum),
+         ncol = n_spp,
+         dimnames = list(NULL, paste0("Y", 1:n_spp))),
+
+  matrix(data = apply(X = D_gct,
+                      MARGIN = 1:2,
+                      FUN = function(x) sum(x^2)),
+         ncol = n_spp,
+         dimnames = list(NULL, paste0("Y", 1:n_spp, "_SQ_SUM")))
+)
+
+attributes(frame)$spp_name <- dimnames(D_gct)[[2]]
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##   Save Data
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+saveRDS(object = frame, file = "data/frame.RDS")
