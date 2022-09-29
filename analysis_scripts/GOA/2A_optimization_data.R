@@ -23,8 +23,8 @@ library(sp)
 ##   Load the true density, true index, and spatial domain dataset
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # load(file = "data/GOA/prednll_VAST_models.RData")
-grid_goa <- read.csv(file = "data/GOA/grid_goa.csv")
-D_gct <- readRDS("data/GOA/VAST_fit_D_gct.RDS")
+grid_goa <- read.csv(file = "analysis_data/GOA/grid_goa.csv")
+D_gct <- readRDS("analysis_data/GOA/VAST_fit_D_gct.RDS")
 
 ## Think about ways to put this in package!!
 updated_goa_strata <- rgdal::readOGR(dsn = "C:/Users/zack.oyafuso/Work/GitHub/Optimal_Allocation_GoA/products/updated_goa_strata/updated_goa_strata.shp")
@@ -56,7 +56,7 @@ grid_goa_sp <- subset(x = grid_goa_sp,
 
 grid_goa_sp <- sp::remove.duplicates(grid_goa_sp)
 
-removed_cells <- (1:n_cells)[-grid_goa_sp$ID]
+removed_cells <- (1:nrow(grid_goa))[-grid_goa_sp$ID]
 D_gct <- D_gct[-removed_cells, , ]
 n_cells <- dim(D_gct)[1]
 
@@ -99,4 +99,5 @@ attributes(frame)$spp_name <- dimnames(D_gct)[[2]]
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Save Data
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-saveRDS(object = frame, file = "data/frame.RDS")
+# saveRDS(object = frame, file = "data/frame.RDS")
+usethis::use_data(frame)
