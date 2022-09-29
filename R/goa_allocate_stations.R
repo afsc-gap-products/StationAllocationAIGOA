@@ -102,8 +102,8 @@ goa_allocate_stations <-
       temp_cv <- as.numeric(attributes(temp_bethel)$outcv[, "PLANNED CV "])
 
       iter = 1
-      while (temp_n != 550 & iter != 1000){
-        over_under <- temp_n > 550
+      while (temp_n != n & iter != 1000){
+        over_under <- temp_n > n
         CV_adj <- ifelse(over_under == TRUE,
                          yes = 1.01,
                          no = 0.99)
@@ -129,7 +129,7 @@ goa_allocate_stations <-
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     ##   multi species CV:
     ##   Start at SRS CV --> bethel algorithm --> optimal sampling size (n_srs)
-    ##   If n_srs < 550 stations, reduce CV constraints across species by 0.1%
+    ##   If n_srs < n stations, reduce CV constraints across species by 0.1%
     ##   using the CVs optimized for each species (ss_cv) as a lower bound.
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     message("Now running multispecies allocation" )
@@ -154,8 +154,8 @@ goa_allocate_stations <-
     temp_n <- sum(ceiling(temp_bethel))
 
     iter = 1
-    while (temp_n != 550 & iter != 5000){
-      over_under <- temp_n > 550
+    while (temp_n != n & iter != 5000){
+      over_under <- temp_n > n
       CV_adj <- ifelse(over_under == TRUE,
                        yes = 1.001,
                        no = 0.999)
