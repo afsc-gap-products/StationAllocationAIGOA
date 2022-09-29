@@ -60,6 +60,8 @@ removed_cells <- (1:n_cells)[-grid_goa_sp$ID]
 D_gct <- D_gct[-removed_cells, , ]
 n_cells <- dim(D_gct)[1]
 
+grid_goa_sp <- grid_goa_sp[, 1:3]
+
 ##################################################
 ####   Our df will have fields for:
 ####   domain: only one domain so the value is just 1
@@ -99,4 +101,7 @@ attributes(frame)$spp_name <- dimnames(D_gct)[[2]]
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Save Data
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-saveRDS(object = frame, file = "data/frame.RDS")
+usethis::use_data(frame, overwrite = TRUE)
+usethis::use_data(grid_goa_sp, overwrite = TRUE)
+
+usethis::use_build_ignore("data/GOA")
