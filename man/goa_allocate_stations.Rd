@@ -6,16 +6,22 @@
 \usage{
 goa_allocate_stations(
   n = 550,
+  min_n_per_stratum = 4,
   species = c("arrowtooth flounder", "Pacific cod", "walleye pollock", "rex sole",
     "flathead sole", "Pacific halibut", "southern rock sole", "northern rock sole",
     "Pacific ocean perch", "silvergray rockfish", "northern rockfish", "dusky rockfish",
-    "BS and RE rockfishes", "Dover sole", "shortspine thornyhead")
+    "BS and RE rockfishes", "Dover sole", "shortspine thornyhead"),
+  max_iter = 5000
 )
 }
 \arguments{
 \item{n}{integer.Total number of stations}
 
+\item{min_n_per_stratum}{integer. Minimum number of stations to assign a stratum}
+
 \item{species}{character vector. See details for full list of species}
+
+\item{max_iter}{integer. Maximum number of times for bethel algorithm to run to converge to `n`.}
 }
 \value{
 A named vector of stations across strata

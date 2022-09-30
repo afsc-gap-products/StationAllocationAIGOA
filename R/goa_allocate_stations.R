@@ -7,6 +7,8 @@
 #'
 #' @param n integer.Total number of stations
 #' @param species character vector. See details for full list of species
+#' @param min_n_per_stratum integer. Minimum number of stations to assign a stratum
+#' @param max_iter integer. Maximum number of times for bethel algorithm to run to converge to `n`.
 #'
 #' @return A named vector of stations across strata
 #'
