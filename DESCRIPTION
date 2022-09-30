@@ -1,4 +1,4 @@
-Package: AIGOASurveyPlanning
+Package: AIGOA_Station_Allocation
 Type: Package
 Title: What the Package Does (Title Case)
 Version: 0.1.0
@@ -12,4 +12,4 @@ LazyData: true
 RoxygenNote: 7.1.2
 Imports: RODBC, XLConnect, tcltk
 Depends: 
-    R (>= 2.10)
+    R (>= 3.6.0)
