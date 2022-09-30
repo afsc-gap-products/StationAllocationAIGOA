@@ -13,6 +13,7 @@
 
 goa_allocate_stations <-
   function(n = 550,
+           min_n_per_stratum = 4,
            species = c("arrowtooth flounder", ## Atherestes stomias
                        "Pacific cod", ## Gadus macrocephalus
                        "walleye pollock", ## Gadus chalcogrammus
@@ -27,37 +28,51 @@ goa_allocate_stations <-
                        "dusky rockfish", ## Sebastes variabilis
                        "BS and RE rockfishes", ## Sebastes aleutianus and S. melanostictus
                        "Dover sole", ## Microstomus pacificus
-                       "shortspine thornyhead")) ## Sebastolobus alascanus))
+                       "shortspine thornyhead" ## Sebastolobus alascanus)
+           ),
+           max_iter = 5000)
   {
 
-    ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    ##   Check that species list matches current species list
-    ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    ##   Load data
+    ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     data(frame)
     data(grid_goa_sp)
 
+    ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    ##   Check that species list matches current species list
+    ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     if(!all(species %in% attributes(frame)$sp))
       stop(paste("Argument `species` contains names that are not currently",
-                  "in the list of included species. See",
+                 "in the list of included species. See",
                  "?AIGOASurveyPlanning::goa_allocate_stations for full list"))
+
+    ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    ##   Constants
+    ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     spp_idx <- match(species, attributes(frame)$sp )
     ns_opt <- length(spp_idx)
     n_cells <- nrow(frame)
     n_years <- unique(frame$WEIGHT)[1]
 
+    strata_names <- levels(factor(grid_goa_sp@data$STRATUM))
+
+    ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    ##   Subset frame dataset to the specified species set
+    ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     frame <- frame[, c('domainvalue', "id", "WEIGHT",
                        paste0("Y", spp_idx), paste0("Y", spp_idx, "_SQ_SUM") )]
     names(frame)[-1:-3] <- c(paste0("Y", 1:ns_opt),
                              paste0("Y", 1:ns_opt, "_SQ_SUM"))
 
-    ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     ##   CVs under SRS: upper CV bounds for MS allocation
-    ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    ## Initiate CVs to be those calculated under SRS, assign to a variable
-    ## named cv_constraints
+    ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    ## Initiate CVs to be those calculated under SRS
     ## buildStrataDF calculates the stratum means and variances, X1 = 1
     ##     means to calculate those statics on the whole domain
-    srs_stats <- SamplingStrata::buildStrataDF( dataset = cbind( frame, X1 = 1))
+    frame$x1 <- 1
+    srs_stats <- SamplingStrata::buildStrataDF(dataset = frame)
     srs_n <- n
     srs_var <- as.matrix(srs_stats[, paste0("S", 1:ns_opt)])^2
 
@@ -68,18 +83,18 @@ goa_allocate_stations <-
 
     srs_cv <- sqrt(srs_var) / srs_stats[, paste0("M", 1:ns_opt)]
 
-    ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    ##   single species CV: lower CV bounds for MS allocation
-    ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    ##   Single species CV: lower CV bounds for MS allocation
+    ##   Set X1 to strata
+    ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     frame$X1 <- as.integer(factor(grid_goa_sp@data$STRATUM))
-    strs_stats <- SamplingStrata::buildStrataDF(frame)
+    strs_stats <- SamplingStrata::buildStrataDF(dataset = frame)
     strs_stats <- strs_stats[order(as.integer(strs_stats$STRATO)), ]
     strs_stats$N <- strs_stats$N / n_years
 
     ss_cv <- data.frame()
     ss_allocations <- matrix(nrow = nrow(strs_stats), ncol = ns_opt,
-                             dimnames = list(levels(factor(grid_goa_sp@data$STRATUM)),
-                                             species))
+                             dimnames = list(strata_names, species))
 
     message("")
 
@@ -89,7 +104,8 @@ goa_allocate_stations <-
                              "domainvalue"  = 1)
       temp_stratif <- cbind(DOM1 = 1,
                             CENS = 0,
-                            strs_stats[, c(names(strs_stats)[1:2], paste0(c("M", "S"), ispp)) ])
+                            strs_stats[, c(names(strs_stats)[1:2],
+                                           paste0(c("M", "S"), ispp)) ])
       names(temp_stratif)[-c(1:4)] <- paste0(c("M", "S"), 1)
 
       temp_bethel <- SamplingStrata::bethel(
@@ -102,7 +118,7 @@ goa_allocate_stations <-
       temp_cv <- as.numeric(attributes(temp_bethel)$outcv[, "PLANNED CV "])
 
       iter = 1
-      while (temp_n != n & iter != 1000){
+      while (temp_n != n & iter != max_iter){
         over_under <- temp_n > n
         CV_adj <- ifelse(over_under == TRUE,
                          yes = 1.01,
@@ -112,7 +128,7 @@ goa_allocate_stations <-
         temp_bethel <- SamplingStrata::bethel(stratif = temp_stratif,
                                               errors = error_df,
                                               printa = TRUE,
-                                              minnumstrat = 4)
+                                              minnumstrat = min_n_per_stratum)
 
         temp_n <- sum(as.numeric(temp_bethel))
         temp_cv <- as.numeric(attributes(temp_bethel)$outcv[, "PLANNED CV "])
@@ -150,11 +166,11 @@ goa_allocate_stations <-
       stratif = temp_stratif,
       realAllocation = T,
       printa = T,
-      minnumstrat = 4)
+      minnumstrat = min_n_per_stratum)
     temp_n <- sum(ceiling(temp_bethel))
 
     iter = 1
-    while (temp_n != n & iter != 5000){
+    while (temp_n != n & iter != max_iter){
       over_under <- temp_n > n
       CV_adj <- ifelse(over_under == TRUE,
                        yes = 1.001,
@@ -169,7 +185,7 @@ goa_allocate_stations <-
       temp_bethel <- SamplingStrata::bethel(stratif = temp_stratif,
                                             errors = error_df,
                                             printa = TRUE,
-                                            minnumstrat = 4)
+                                            minnumstrat = min_n_per_stratum)
 
       temp_n <- sum(as.numeric(temp_bethel))
       iter <- iter + 1
@@ -179,7 +195,10 @@ goa_allocate_stations <-
     ms_allocation <- as.integer(ceiling(temp_bethel))
     names(ms_allocation) <- levels(factor(grid_goa_sp@data$STRATUM))
 
-    return(ms_allocation)
-  }
+    expected_cvs <- cbind( t(srs_cv), ss_cv$ss_cv, ms_cv )
+    dimnames(expected_cvs) <- list(species, c("srs_cv", "ss_cv", "ms_cv"))
 
-goa_allocate_stations()
+    return(list(ss_allocations = ss_allocations,
+                ms_allocation = ms_allocation,
+                expected_cvs = as.data.frame(expected_cvs)))
+  }
