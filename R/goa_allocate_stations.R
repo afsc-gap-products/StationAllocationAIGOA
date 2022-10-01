@@ -73,7 +73,7 @@ goa_allocate_stations <-
     ## Initiate CVs to be those calculated under SRS
     ## buildStrataDF calculates the stratum means and variances, X1 = 1
     ##     means to calculate those statics on the whole domain
-    frame$x1 <- 1
+    frame$X1 <- 1
     srs_stats <- SamplingStrata::buildStrataDF(dataset = frame)
     srs_n <- n
     srs_var <- as.matrix(srs_stats[, paste0("S", 1:ns_opt)])^2
