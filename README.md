@@ -1,15 +1,40 @@
-# AIGOASurveyPlanning
+# **Station Allocation Aleutian Islands and Gulf of Alaska**
 
-This package holds the functions used to randomly draw and allocate survey stations for the Aleutian Islands bottom trawl survey. The code was originally produced by Paul von Szalay and Ned Laman. This package is maintained by Zack Oyafuso and is intended to formalize the set of functions saved on the G drive (G:/GOA/R/survey planning/.RData). Currently, the code is only functional for the Aleutian Islands survey. 
+This package is intended to be used to document and reproduce the station
+allocation for the Aleutian Islands (even years) and Gulf of Alaska (odd years)
+bottom trawl surveys. 
 
 ## Install
-
 ```
 library(devtools)
-devtools::install_github("afsc-gap-products/AIGOASurveyPlanning")
+devtools::install_github("zoyafuso-NOAA/SamplingStrata")
+devtools::install_github("afsc-gap-products/StationAllocationAIGOA")
 ```
 
-You also need to be connected to the VPN to connect to SQL Developer (is this right?) as well as the other data inputs in the G drive. 
+#### *Station Allocation: Gulf of Alaska 2023 Bottom Trawl Survey*
+```
+spp_list <- c("walleye pollock", "Pacific cod", "arrowtooth flounder", 
+              "flathead sole", "rex sole", "northern rock sole", 
+              "southern rock sole", "Dover sole", "Pacific halibut", 
+              "Pacific ocean perch", "BS and RE rockfishes", 
+              "silvergray rockfish", "dusky rockfish", "northern rockfish",
+              "shortspine thornyhead")
+
+GOA_allocation_2023 <- 
+      StationAllocationAIGOA::goa_allocate_stations(
+          species = spp_list, 
+          n = 550, 
+          min_n_per_stratum = 4)
+```
+
+
+#### *Station Allocation: Aleutian Islands 2022 Bottom Trawl Survey* 
+This package holds the functions used to randomly draw and allocate survey 
+stations for the Aleutian Islands and Gulf of Alaska bottom trawl survey. The 
+code was originally produced by Paul von Szalay and Ned Laman. This package is
+maintained by Zack Oyafuso and is intended to formalize the set of functions 
+saved on the G drive (G:/GOA/R/survey planning/.RData).
+
 
 ## Inputs 
 
@@ -29,20 +54,20 @@ The (pseudocode) hierarchy of the goa.planning() function is as such:
 
 ```
 goa.planning() { ## main wrapper function
-  
-  get.ai.stations() ## query available Aleutian Islands stations
-  
-  allocate.effort() { ## allocate available stations across strata
-    get.planning.data() ## caluclate stratum-level catch stats
-    plot.allocations.by.stratum() { ## output allocation plots by stratum 
-      plot.strata.stations() ##  plot stations across stratum
-    }
-  }
-  
-  pick.gridpoints() ## randomly sample stations based on stratified random allocations
-  
-  vessel.allocation() ## allocate stations across vessels
-  
+
+get.ai.stations() ## query available Aleutian Islands stations
+
+allocate.effort() { ## allocate available stations across strata
+get.planning.data() ## caluclate stratum-level catch stats
+plot.allocations.by.stratum() { ## output allocation plots by stratum 
+plot.strata.stations() ##  plot stations across stratum
+}
+}
+
+pick.gridpoints() ## randomly sample stations based on stratified random allocations
+
+vessel.allocation() ## allocate stations across vessels
+
 }
 
 ```
