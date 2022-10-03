@@ -7,8 +7,13 @@
 #'
 #' @param n integer.Total number of stations
 #' @param species character vector. See details for full list of species
-#' @param min_n_per_stratum integer. Minimum number of stations to assign a stratum
-#' @param max_iter integer. Maximum number of times for bethel algorithm to run to converge to `n`.
+#' @param min_n_per_stratum integer. Minimum number of stations to assign a
+#'                          stratum
+#' @param max_iter integer. Maximum number of times for bethel algorithm to run
+#'                 to converge to `n`.
+#' @param year integer. The year as an integer is used as a seed for the random
+#'             number generator when drawing random stations.
+#' @param vesssel_names character vector.
 #'
 #' @return A named vector of stations across strata
 #'
@@ -32,7 +37,9 @@ goa_allocate_stations <-
                        "Dover sole", ## Microstomus pacificus
                        "shortspine thornyhead" ## Sebastolobus alascanus)
            ),
-           max_iter = 5000)
+           max_iter = 5000,
+           year = 2023,
+           vessel_names = c("veseel_1", "vessel_2"))
   {
 
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -40,14 +47,18 @@ goa_allocate_stations <-
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     data(frame)
     data(grid_goa_sp)
+    data(stations)
 
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     ##   Check that species list matches current species list
+    ##   Check that year is an integer
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    if(!all(species %in% attributes(frame)$sp))
-      stop(paste("Argument `species` contains names that are not currently",
+    if (!all(species %in% attributes(frame)$sp))
+      stop(paste("message from StationAllocationAIGOA::goa_allocate_stations:",
+                 "Argument `species` contains names that are not currently",
                  "in the list of included species. See",
-                 "?AIGOASurveyPlanning::goa_allocate_stations for full list"))
+                 "?StationAllocationAIGOA::goa_allocate_stations",
+                 "for full species list"))
 
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     ##   Constants
@@ -58,6 +69,8 @@ goa_allocate_stations <-
     n_years <- unique(frame$WEIGHT)[1]
 
     strata_names <- levels(factor(grid_goa_sp@data$STRATUM))
+
+
 
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     ##   Subset frame dataset to the specified species set
@@ -193,14 +206,35 @@ goa_allocate_stations <-
       iter <- iter + 1
     }
 
+    ## Multispcies allocation and cvs
     ms_cv <- as.numeric(updated_cv_constraint)
     ms_allocation <- as.integer(ceiling(temp_bethel))
     names(ms_allocation) <- levels(factor(grid_goa_sp@data$STRATUM))
 
+    # ## Randomly drawn stations
+    drawn_stations <- c()
+
+    for (i in 1:length(ms_allocation)) {
+      set.seed(year)
+      istratum <- names(ms_allocation)[i]
+      available_stations <- with(stations@data,
+                                 which(STRATUM == istratum & TRAWL == T))
+      temp_samples <- sample(x = available_stations,
+                             size = ms_allocation[i],
+                             prob = stations$AREA_KM2[available_stations],
+                             replace = FALSE)
+      drawn_stations <- c(drawn_stations, temp_samples)
+    }
+
+    drawn_stations <- stations[drawn_stations, ]
+    drawn_stations$vessel <- vessel_names
+
+    ## Expected CVs
     expected_cvs <- cbind( t(srs_cv), ss_cv$ss_cv, ms_cv )
     dimnames(expected_cvs) <- list(species, c("srs_cv", "ss_cv", "ms_cv"))
 
     return(list(ss_allocations = ss_allocations,
                 ms_allocation = ms_allocation,
-                expected_cvs = as.data.frame(expected_cvs)))
+                expected_cvs = as.data.frame(expected_cvs),
+                drawn_stations = drawn_stations))
   }
