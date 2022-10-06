@@ -14,6 +14,7 @@
 #' @param year integer. The year as an integer is used as a seed for the random
 #'             number generator when drawing random stations.
 #' @param vesssel_names character vector.
+#' @param output_dir character string. Path for outputs.
 #'
 #' @return A named vector of stations across strata
 #'
@@ -39,7 +40,8 @@ goa_allocate_stations <-
            ),
            max_iter = 5000,
            year = 2023,
-           vessel_names = c("veseel_1", "vessel_2"))
+           vessel_names = c("vessel_1", "vessel_2"),
+           output_dir = NULL)
   {
 
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -48,6 +50,9 @@ goa_allocate_stations <-
     data(frame)
     data(grid_goa_sp)
     data(stations)
+    data(strata_list)
+    data(ak_land)
+    data(depth_mods)
 
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     ##   Check that species list matches current species list
@@ -59,6 +64,12 @@ goa_allocate_stations <-
                  "in the list of included species. See",
                  "?StationAllocationAIGOA::goa_allocate_stations",
                  "for full species list"))
+
+    if (!is.null(output_dir))
+      if (!dir.exists(output_dir))
+        stop(paste("message from StationAllocationAIGOA::goa_allocate_stations:",
+                   "directory path `output_dir` does not exist, please provide",
+                   "a path for output products"))
 
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     ##   Constants
@@ -232,6 +243,61 @@ goa_allocate_stations <-
     ## Expected CVs
     expected_cvs <- cbind( t(srs_cv), ss_cv$ss_cv, ms_cv )
     dimnames(expected_cvs) <- list(species, c("srs_cv", "ss_cv", "ms_cv"))
+
+
+    if (!is.null(output_dir)) {
+      pdf(file = paste0(output_dir, "/goa_station_allocation_", year, ".pdf"),
+          width = 10, height = 7, onefile = TRUE)
+
+      for (iarea in c("Shumagin", "Chirikof", "Kodiak", "Yakutat", "Southeast")) {
+
+        temp_strata <-
+          sort(unique(grid_goa_sp@data$STRATUM[grid_goa_sp$MGT_AREA == iarea]))
+
+        par(mfrow = switch(paste(length(temp_strata)),
+                           "5" = c(2, 3),
+                           "4" =  c(2, 2)),
+            mar = c(0,0,0,0))
+
+        for (istratum in temp_strata) {
+          plot(subset(strata_list, MGT_AREA == iarea), border = F)
+          plot(ak_land, col = "tan", add = T, border = "tan")
+          plot(subset(x = strata_list, subset = STRATUM == istratum), add = TRUE,
+               col = "red", border = F)
+          plot(subset(x = stations, subset = STRATUM == istratum & TRAWL == F),
+               add = TRUE, col = "grey", border = "grey")
+
+          for (ivessel in 1:length(vessel_names)) {
+            plot(subset(x = drawn_stations,
+                        subset = STRATUM == istratum &
+                          vessel == vessel_names[ivessel]),
+                 col = c("black", "blue")[ivessel],
+                 border = c("black", "blue")[ivessel],
+                 add = TRUE)
+          }
+
+          vessel_n <-
+            table(drawn_stations$vessel[drawn_stations$STRATUM == istratum])
+
+          box()
+          stratum_description <-
+            with(subset(depth_mods, stratum == istratum),
+                 paste0(lower_depth_m, " - ", upper_depth_m, " m"))
+
+          legend(switch(iarea,
+                        "Southeast" = "bottomleft",
+                        "Yakutat" = "bottom",
+                        "Kodiak" = "right",
+                        "Chirikof" = "bottomright",
+                        "Shumagin"= "bottom"),
+                 legend = paste0(vessel_names, ": ", vessel_n, " stations"),
+                 fill = c("black", "blue"),
+                 title = paste0(istratum, ": ", stratum_description))
+        }
+
+      }
+      dev.off()
+    }
 
     return(list(ss_allocations = ss_allocations,
                 ms_allocation = ms_allocation,
