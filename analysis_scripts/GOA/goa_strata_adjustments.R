@@ -225,6 +225,9 @@ writeOGR(obj = overlap_with_trawl_polygon,
          layer = "overlap_with_trawl_polygon",
          driver = "ESRI Shapefile")
 
+usethis::use_data(name = ak_land, overwrite = TRUE)
+usethis::use_data(name = depth_mods, overwrite = TRUE)
+
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Plots ----
 ##   Plot new strata, stations, and untrawlable areas for each mgmt area
