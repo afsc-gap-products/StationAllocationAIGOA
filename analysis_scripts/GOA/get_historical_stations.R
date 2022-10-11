@@ -30,4 +30,4 @@ attributes(goa_grid_2021)$date.accessed <- Sys.Date()
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Upload station df to package
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-usethis::use_data(name = goa_grid_2021, overwrite = TRUE)
+saveRDS(goa_grid_2021, file = "data/GOA/grid_goa_2021.rds")
