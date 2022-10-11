@@ -19,6 +19,7 @@ library(stars)
 library(SpaDES)
 library(RColorBrewer)
 library(spatialEco)
+library(lwgeom)
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Load depth modifications ----
@@ -52,9 +53,14 @@ rm(split_bathy, i, n_split_rasters, temp_raster)
 ##   ak_land is AK land
 ##   goa_grid_untrawl is a polygon of untrawlable areas
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-goa_domain <- rgdal::readOGR("data/GOA/shapefiles/GOAdissolved.shp")
-ak_land <- rgdal::readOGR(dsn = "data/GOA/shapefiles/alaska_dcw.shp")
 goa_grid <- rgdal::readOGR("data/GOA/shapefiles/goagrid.shp")
+goa_domain <- rgeos::gUnaryUnion(spgeom = goa_grid)
+latlon_crs <- raster::crs(rgdal::readOGR("data/GOA/shapefiles/GOAdissolved.shp"))
+goa_domain_latlon <- sp::spTransform(x = goa_domain, CRSobj = latlon_crs)
+
+# data(Station)
+
+ak_land <- rgdal::readOGR(dsn = "data/GOA/shapefiles/alaska_dcw.shp")
 goa_grid_untrawl <- rgdal::readOGR("data/GOA/shapefiles/goagrid2019_landuntrawlsndmn.shp")
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -62,33 +68,42 @@ goa_grid_untrawl <- rgdal::readOGR("data/GOA/shapefiles/goagrid2019_landuntrawls
 ##   Create masks for each management area in aea projection and transform
 ##   goa_domain to aea projection.
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Shumagin_shape <- raster::crop(x = goa_domain,
-                               y = extent(c(-176, -159, 50, 65)))
-Shumagin_shape <- sp::spTransform(x = Shumagin_shape, CRSobj = crs(ak_land))
+Shumagin_shape <- raster::crop(x = goa_domain_latlon,
+                               y = raster::extent(c(-176, -159, 50, 65)))
+Shumagin_shape <- sp::spTransform(x = Shumagin_shape,
+                                  CRSobj = raster::crs(ak_land))
 
-Chirikof_shape <- raster::crop(x = goa_domain,
-                               y = extent(c(-159, -154, 50, 65)))
-Chirikof_shape <- sp::spTransform(x = Chirikof_shape, CRSobj = crs(ak_land))
+Chirikof_shape <- raster::crop(x = goa_domain_latlon,
+                               y = raster::extent(c(-159, -154, 50, 59)))
+Chirikof_shape <- sp::spTransform(x = Chirikof_shape,
+                                  CRSobj = raster::crs(ak_land))
 
-Kodiak_shape <- raster::crop(x = goa_domain,
-                             y = extent(c(-154, -147, 50, 65)))
-Kodiak_shape <- sp::spTransform(x = Kodiak_shape, CRSobj = crs(ak_land))
+Kodiak_shape <- raster::crop(x = goa_domain_latlon,
+                             y = raster::extent(c(-154, -147, 50, 65)))
+Kodiak_shape <- sp::spTransform(x = Kodiak_shape,
+                                CRSobj = raster::crs(ak_land))
+W_Cook_Inlet <- raster::crop(x = goa_domain_latlon,
+                             y = raster::extent(c(-154.5, -154, 59.1,59.5)))
+W_Cook_Inlet <- sp::spTransform(x = W_Cook_Inlet,
+                                CRSobj = raster::crs(ak_land))
+Kodiak_shape <- raster::bind(x = Kodiak_shape, y = W_Cook_Inlet)
 
-Yakutat_shape <- raster::crop(x = goa_domain,
-                              y = extent(c(-147, -140, 50, 65)))
-Yakutat_shape <- sp::spTransform(x = Yakutat_shape, CRSobj = crs(ak_land))
+Yakutat_shape <- raster::crop(x = goa_domain_latlon,
+                              y = raster::extent(c(-147, -140, 50, 65)))
+Yakutat_shape <- sp::spTransform(x = Yakutat_shape,
+                                 CRSobj = raster::crs(ak_land))
 
-Southeast_shape <- raster::crop(x = goa_domain,
-                                y = extent(c(-140, -132, 50, 65)))
-Southeast_shape <- sp::spTransform(x = Southeast_shape, CRSobj = crs(ak_land))
-
-goa_domain <- sp::spTransform(x = goa_domain, CRSobj = crs(ak_land))
+Southeast_shape <- raster::crop(x = goa_domain_latlon,
+                                y = raster::extent(c(-140, -132, 50, 65)))
+Southeast_shape <- sp::spTransform(x = Southeast_shape,
+                                   CRSobj = raster::crs(ak_land))
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Create strata polygons ----
 ##   For each management area, create new strata based on depth specifications
 ##   and append to strata_list
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 strata_list <- list()
 for (idistrict in unique(depth_mods$manage_area)) {
 
@@ -124,20 +139,27 @@ for (idistrict in unique(depth_mods$manage_area)) {
     data.frame(manage_area = idistrict,
                stratum = paste0(idistrict, "_", strata_poly@data$dblbnd))
 
+  strata_poly <- raster::aggregate(x = strata_poly,
+                                   by = c("manage_area", "stratum"))
+
+  strata_poly$AREA_KM2 <- raster::area(strata_poly) / 1e6
+  strata_poly$PER_KM <-
+    as.numeric(lwgeom::st_perimeter(stars::st_as_stars(strata_poly)) / 1000)
+
   ## Append to strata_list
   strata_list <- c(strata_list, list(strata_poly))
+
+  print(paste("Finished with the", idistrict, "region"))
 }
+rm(idistrict, strata_poly, district_outline, district_bathy)
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Merge strata into one object
-##   Calculate the Area and perimeter of each stratum shape
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 strata_list <- raster::bind(strata_list)
-strata_list$AREA_KM2 <- raster::area(strata_list) / 1e6
-strata_list$PER_KM <- spatialEco::polyPerimeter(x = strata_list) / 1e3
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-##   Take the current goa grid and merge all stratum polygons within a 5x5 km
+##   Take the current goa grid and merge all historical stations wihtin 5x5 km
 ##   cell. This essentially resets the stratum data in each grid cell.
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 goa_full_grid <- raster::aggregate(x = goa_grid,
@@ -153,11 +175,12 @@ goa_full_grid <- raster::aggregate(x = goa_grid,
 ##   Intersect the new strata polygons with the 5x5 km grid. This function
 ##   takes a few minutes. Then calculate the area and perimeter of each station
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-stations <- raster::intersect(goa_full_grid, strata_list)
+stations <- raster::intersect(x = goa_full_grid, y = strata_list)
 stations <- raster::aggregate(x = stations,
                               by = c("ID", "manage_area", "stratum"))
 stations$PER_KM <- spatialEco::polyPerimeter(x = stations) / 1e3
 stations$AREA_KM2 <- rgeos::gArea(spgeom = stations, byid = T) / 1e6
+sp::proj4string(obj = stations) <-raster::crs(goa_full_grid)
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Untrawlable area calculation ----
@@ -167,20 +190,12 @@ stations$AREA_KM2 <- rgeos::gArea(spgeom = stations, byid = T) / 1e6
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 overlap_with_trawl_polygon <- raster::intersect(stations, goa_grid_untrawl)
 overlap_with_trawl_polygon@data <- overlap_with_trawl_polygon@data[, 1:3]
-names(overlap_with_trawl_polygon) <- c("ID", "manage_area", "stratum")
-overlap_with_trawl_polygon <-
-  raster::aggregate(x = overlap_with_trawl_polygon,
-                    by = c("ID", "manage_area", "stratum"))
-
-overlap_with_trawl_polygon$AREA_KM2 <-
-  raster::area(overlap_with_trawl_polygon) / 1e6
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##  Update stations shapefile with untrawlable information
 ##  Create a trawlable field in the stations
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 stations$trawlable <- TRUE
-stations$untrawl_area_km2 <- 0
 
 for (irow in 1:length(overlap_with_trawl_polygon)) {
   temp_id <- overlap_with_trawl_polygon$ID[irow]
@@ -191,10 +206,13 @@ for (irow in 1:length(overlap_with_trawl_polygon)) {
                          subset = ID == temp_id & stratum == temp_str)
 
   stations$trawlable[temp_idx] <- FALSE
-  stations$untrawl_area_km2[temp_idx] <- temp_untrawl$AREA_KM2
-
-  rm(temp_idx, irow)
 }
+rm(temp_id, temp_str, temp_idx)
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##   Format stations
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+data.frame()
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##  Save results ----
@@ -207,30 +225,31 @@ names(strata_list) <- c("MGT_AREA", "STRATUM", "AREA_KM2", "PER_KM")
 writeOGR(obj = strata_list,
          dsn = "data/GOA/updated_goa_strata_2023/updated_goa_strata.shp",
          layer = "updated_goa_strata",
-         driver = "ESRI Shapefile")
-usethis::use_data(name = strata_list, overwrite = TRUE)
+         driver = "ESRI Shapefile",
+         overwrite_layer = TRUE)
 
 names(stations) <- c("ID", "MGT_AREA", "STRATUM", "PER_KM" ,
                      "AREA_KM2", "TRAWL", "UT_AR_KM2")
-
 writeOGR(obj = stations,
          dsn = "data/GOA/updated_goa_strata_2023/updated_stations.shp",
          layer = "updated_stations",
-         driver = "ESRI Shapefile")
-usethis::use_data(name = stations, overwrite = TRUE)
+         driver = "ESRI Shapefile",
+         overwrite_layer = TRUE)
 
 names(overlap_with_trawl_polygon) <- c("ID", "MGT_AREA", "STRATUM", "AREA_KM2")
 writeOGR(obj = overlap_with_trawl_polygon,
          dsn = paste0("data/GOA/updated_goa_strata_2023/UT_areas.shp"),
          layer = "overlap_with_trawl_polygon",
-         driver = "ESRI Shapefile")
+         driver = "ESRI Shapefile",
+         overwrite_layer = TRUE)
 
+usethis::use_data(name = stations, overwrite = TRUE)
+usethis::use_data(name = strata_list, overwrite = TRUE)
 usethis::use_data(name = ak_land, overwrite = TRUE)
 usethis::use_data(name = depth_mods, overwrite = TRUE)
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-##   Plots ----
-##   Plot new strata, stations, and untrawlable areas for each mgmt area
+##   Plots
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 pdf(file = "data/GOA/updated_goa_strata_2023/updated_strata.pdf",
@@ -255,11 +274,14 @@ for (iarea in unique(depth_mods$manage_area)[]) {
   plot(crop(x = overlap_with_trawl_polygon,
             y = get(paste0(iarea, "_shape"))),
        col = "black", add = TRUE, border = FALSE)
-  plot(ak_land, add = TRUE, col = "tan", border = F)
+  # plot(ak_land, add = TRUE, col = "tan", border = F)
+
+  plot(subset(strata_list, MGT_AREA == iarea),
+       lwd = 0.1, add = TRUE)
 
   ## Legend
   legend_labels <- with(subset(depth_mods, manage_area == iarea),
-       paste0(lower_depth_m, " - ", upper_depth_m, " m"))
+                        paste0(lower_depth_m, " - ", upper_depth_m, " m"))
   legend_labels[length(legend_labels)] <- "> 700 m"
   legend_labels <- c(legend_labels, "Untrawlable")
 
