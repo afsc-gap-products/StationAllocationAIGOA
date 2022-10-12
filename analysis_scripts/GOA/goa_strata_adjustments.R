@@ -58,7 +58,9 @@ goa_domain <- rgeos::gUnaryUnion(spgeom = goa_grid)
 latlon_crs <- raster::crs(rgdal::readOGR("data/GOA/shapefiles/GOAdissolved.shp"))
 goa_domain_latlon <- sp::spTransform(x = goa_domain, CRSobj = latlon_crs)
 
-# data(Station)
+goa_grid_2021 <- readRDS(file = "data/GOA/grid_goa_2021.rds")
+goa_grid_2021 <- goa_grid_2021[order(goa_grid_2021$GOAGRID_ID), ]
+goa_strata_2021 <- readRDS(file = "data/GOA/grid_strata_2021.rds")
 
 ak_land <- rgdal::readOGR(dsn = "data/GOA/shapefiles/alaska_dcw.shp")
 goa_grid_untrawl <- rgdal::readOGR("data/GOA/shapefiles/goagrid2019_landuntrawlsndmn.shp")
@@ -180,7 +182,14 @@ stations <- raster::aggregate(x = stations,
                               by = c("ID", "manage_area", "stratum"))
 stations$PER_KM <- spatialEco::polyPerimeter(x = stations) / 1e3
 stations$AREA_KM2 <- rgeos::gArea(spgeom = stations, byid = T) / 1e6
-sp::proj4string(obj = stations) <-raster::crs(goa_full_grid)
+sp::proj4string(obj = stations) <- raster::crs(goa_full_grid)
+
+stations@data[, c("E_m", "N_m")] <-
+  rgeos::gCentroid(spgeom = stations, byid = TRUE)@coords
+stations@data[, c("Lon", "Lat")] <-
+  rgeos::gCentroid(spgeom = sp::spTransform(x = stations,
+                                            CRSobj = latlon_crs),
+                   byid = TRUE)@coords
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Untrawlable area calculation ----
@@ -212,7 +221,60 @@ rm(temp_id, temp_str, temp_idx)
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Format stations
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-data.frame()
+goagrid_ids <-
+  (max(goa_grid_2021$GOAGRID_ID) + 1):
+  (max(goa_grid_2021$GOAGRID_ID) + nrow(stations))
+
+goa_grid_2023 <- data.frame("GOAGRID#" = goagrid_ids + 1,
+                            "GOAGRID_ID" = goagrid_ids,
+                            "TRAWLABLE" = stations$trawlable,
+                            "AREA_KM2" = stations$AREA_KM2,
+                            "PERIMETER_KM2" = stations$PER_KM,
+                            "STRATUM" = stations$stratum,
+                            "STATIONID" = stations$ID,
+                            "CENTER_LAT" = stations$Lat,
+                            "CENTER_LONG" = stations$Lon,
+                            check.names = FALSE)
+
+goa_grid_2023[, c("NORTH_LAT", "SOUTH_LAT", "EAST_LONG", "WEST_LONG")] <-
+  goa_grid_2021[match(goa_grid_2023$STATIONID, goa_grid_2021$STATIONID),
+                c("NORTH_LAT", "SOUTH_LAT", "EAST_LONG", "WEST_LONG")]
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##   Format strata
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+goa_strata_2023 <-
+  data.frame("SURVEY" = "GOA",
+             "STRATUM" = strata_list$stratum,
+             "AREA" = strata_list$AREA_KM2,
+             "PERIMETER" = strata_list$PER_KM,
+             "INPFC_AREA" = ifelse(test = strata_list$manage_area == "Southeast",
+                                   yes = "Southesatern",
+                                   no = strata_list$manage_area),
+             "MIN_DEPTH" = NA,
+             "MAX_DEPTH" = NA,
+             "DESCRIPTION" = NA,
+             "SUMMARY_AREA" = NA,
+             "SUMMARY_DEPTH"= NA,
+             "SUMMARY_AREA_DEPTH" = NA,
+             "REGULATORY_AREA_NAME" =
+               sapply(X = strata_list$manage_area,
+                      FUN = function(x) switch(x,
+                                               "Shumagin" = "WESTERN GOA",
+                                               "Chirikof" = "CENTRAL GOA",
+                                               "Kodiak" = "CENTRAL GOA",
+                                               "Yakutat" = "EASTERN GOA",
+                                               "Southeast" = "EASTERN GOA")),
+             "STRATUM_TYPE" = NA)
+
+goa_strata_2023[, c("MIN_DEPTH", "MAX_DEPTH")] <-
+  depth_mods[match(goa_strata_2023$STRATUM, depth_mods$stratum),
+             c("lower_depth_m", "upper_depth_m")]
+
+goa_strata_2023$MIN_DEPTH <- ifelse(test = goa_strata_2023$MIN_DEPTH == 0,
+                                    yes = 1, no = goa_strata_2023$MIN_DEPTH)
+goa_strata_2023$MAX_DEPTH <- ifelse(test = goa_strata_2023$MAX_DEPTH == 2000,
+                                    yes = 1000, no = goa_strata_2023$MAX_DEPTH)
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##  Save results ----
@@ -221,15 +283,14 @@ data.frame()
 if(!dir.exists("data/GOA/updated_goa_strata_2023/"))
   dir.create("data/GOA/updated_goa_strata_2023/")
 
-names(strata_list) <- c("MGT_AREA", "STRATUM", "AREA_KM2", "PER_KM")
+strata_list@data <- goa_strata_2023
 writeOGR(obj = strata_list,
          dsn = "data/GOA/updated_goa_strata_2023/updated_goa_strata.shp",
          layer = "updated_goa_strata",
          driver = "ESRI Shapefile",
          overwrite_layer = TRUE)
 
-names(stations) <- c("ID", "MGT_AREA", "STRATUM", "PER_KM" ,
-                     "AREA_KM2", "TRAWL", "UT_AR_KM2")
+stations@data <- goa_grid_2023
 writeOGR(obj = stations,
          dsn = "data/GOA/updated_goa_strata_2023/updated_stations.shp",
          layer = "updated_stations",
@@ -257,8 +318,8 @@ pdf(file = "data/GOA/updated_goa_strata_2023/updated_strata.pdf",
 for (iarea in unique(depth_mods$manage_area)[]) {
   par(mar = c(0.5, 0.5, 0.5, 0.5))
   n_strata <- with(depth_mods, table(manage_area))[iarea]
-  temp_area <- subset(stations, MGT_AREA == iarea)
-  temp_area <- temp_area[order(temp_area$STRATUM), ]
+  temp_area <- stations[grep(x = stations$STRATUM, pattern = iarea), ]
+  # temp_area <- temp_area[order(temp_area$STRATUM), ]
 
   plot(temp_area, axes = F, col = "white", border = F)
 
@@ -274,9 +335,9 @@ for (iarea in unique(depth_mods$manage_area)[]) {
   plot(crop(x = overlap_with_trawl_polygon,
             y = get(paste0(iarea, "_shape"))),
        col = "black", add = TRUE, border = FALSE)
-  # plot(ak_land, add = TRUE, col = "tan", border = F)
+  plot(ak_land, add = TRUE, col = "tan", border = F)
 
-  plot(subset(strata_list, MGT_AREA == iarea),
+  plot(subset(strata_list, INPFC_AREA == iarea),
        lwd = 0.1, add = TRUE)
 
   ## Legend
