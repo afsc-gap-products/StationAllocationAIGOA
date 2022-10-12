@@ -28,6 +28,13 @@ goa_grid_2021 <-  RODBC::sqlQuery(channel = channel, query = grid_q)
 attributes(goa_grid_2021)$date.accessed <- Sys.Date()
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-##   Upload station df to package
+##   Query Strata data from Oracle
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+strata_q <- "select * from GOA.GOA_STRATA where SURVEY = 'GOA'"
+goa_strata_2021 <-  RODBC::sqlQuery(channel = channel, query = strata_q)
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##   Upload dfs to repo
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 saveRDS(goa_grid_2021, file = "data/GOA/grid_goa_2021.rds")
+saveRDS(goa_strata_2021, file = "data/GOA/grid_strata_2021.rds")
