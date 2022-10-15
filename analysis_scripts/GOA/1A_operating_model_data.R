@@ -10,10 +10,8 @@ rm(list = ls())
 ##   Import libraries
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 library(dplyr)
-library(raster)
+library(terra)
 library(sumfish)
-library(lubridate)
-library(SpaDES.tools)
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Constants used
@@ -45,13 +43,13 @@ species_codes <- GOA$species
 split_bathy <- list()
 n_split_rasters <- length(dir("data/GOA/split_goa_bathy_ras/")) / 2
 for (i in 1:n_split_rasters) {
-  split_bathy[[i]] <- raster::raster(paste0("data/GOA/",
-                                            "split_goa_bathy_ras",
-                                            "/goa_bathy_processed_",
-                                            i, ".grd"))
+  split_bathy[[i]] <- terra::rast(x = paste0("data/GOA/",
+                                             "split_goa_bathy_ras",
+                                             "/goa_bathy_processed_",
+                                             i, ".grd"))
 }
 
-bathy <- SpaDES.tools::mergeRaster(split_bathy)
+bathy <- do.call(what = terra::merge, args = split_bathy)
 rm(split_bathy, i)
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -59,7 +57,7 @@ rm(split_bathy, i)
 ##   Select and rename columns, dropping rows with mising depths
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 species_codes <- dplyr::select(species_codes, -YEAR_ADDED)
-data <- inner_join(data, species_codes)
+data <- dplyr::inner_join(data, species_codes)
 data <- data %>% dplyr::select(YEAR, SURVEY = REGION, HAULJOIN = HAULJOIN,
                                SURFACE_TEMPERATURE, GEAR_TEMPERATURE,
                                BOTTOM_DEPTH,
@@ -86,10 +84,11 @@ rock_soles <- data %>%
   dplyr::filter(COMMON_NAME %in% c("rock sole unid.",
                                    "southern rock sole",
                                    "northern rock sole")) %>%
-  group_by_at(vars(-WEIGHT, -COMMON_NAME, -SPECIES_NAME)) %>%
-  summarise(WEIGHT = sum(WEIGHT)) %>%
-  ungroup() %>%
-  mutate(SPECIES_NAME = "Lepidopsetta spp.", COMMON_NAME = "rock soles")
+  dplyr::group_by_at(vars(-WEIGHT, -COMMON_NAME, -SPECIES_NAME)) %>%
+  dplyr::summarise(WEIGHT = sum(WEIGHT)) %>%
+  dplyr::ungroup() %>%
+  dplyr::mutate(SPECIES_NAME = "Lepidopsetta spp.",
+                COMMON_NAME = "rock soles")
 
 data <- as.data.frame(rbind(data, rock_soles))
 
@@ -101,10 +100,11 @@ B_R_rockfishes <- data %>% dplyr::filter(
   COMMON_NAME %in% c("blackspotted rockfish",
                      "rougheye rockfish",
                      "rougheye and blackspotted rockfish unid.")) %>%
-  group_by_at(vars(-WEIGHT, -COMMON_NAME, -SPECIES_NAME)) %>%
-  summarise(WEIGHT = sum(WEIGHT)) %>%
-  ungroup() %>%
-  mutate(SPECIES_NAME = "Sebastes B_R", COMMON_NAME = "BS and RE rockfishes")
+  dplyr::group_by_at(vars(-WEIGHT, -COMMON_NAME, -SPECIES_NAME)) %>%
+  dplyr::summarise(WEIGHT = sum(WEIGHT)) %>%
+  dplyr::ungroup() %>%
+  dplyr::mutate(SPECIES_NAME = "Sebastes B_R",
+                COMMON_NAME = "BS and RE rockfishes")
 data <- as.data.frame(rbind(data, B_R_rockfishes))
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -113,16 +113,18 @@ data <- as.data.frame(rbind(data, B_R_rockfishes))
 sculpins <- data %>% dplyr::filter(
   COMMON_NAME %in% c("bigeye sculpin", "great sculpin",
                      "plain sculpin", "yellow Irish lord")) %>%
-  group_by_at(vars(-WEIGHT, -COMMON_NAME, -SPECIES_NAME)) %>%
-  summarise(WEIGHT = sum(WEIGHT)) %>%
-  ungroup() %>%
-  mutate(SPECIES_NAME = "sculpins", COMMON_NAME = "sculpins")
+  dplyr::group_by_at(vars(-WEIGHT, -COMMON_NAME, -SPECIES_NAME)) %>%
+  dplyr::summarise(WEIGHT = sum(WEIGHT)) %>%
+  dplyr::ungroup() %>%
+  dplyr::mutate(SPECIES_NAME = "sculpins",
+                COMMON_NAME = "sculpins")
 data <- as.data.frame(rbind(data, sculpins))
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##  Change name of spiny dogfish to Pacific spiny dogifsh
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-data$COMMON_NAME[data$COMMON_NAME == "spiny dogfish"] <- "Pacific spiny dogfish"
+data$COMMON_NAME[data$COMMON_NAME == "spiny dogfish"] <-
+  "Pacific spiny dogfish"
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##  Subset data to only the species of interest
@@ -164,16 +166,16 @@ data <- subset(data,
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##  Assign station depths from EFH layer
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-cpue_shape = sp::SpatialPointsDataFrame(
-  coords = data[, c("LONGITUDE", "LATITUDE")],
-  data = data,
-  proj4string = CRS(lonlat_crs))
-
-cpue_shape_aea <- sp::spTransform(x = cpue_shape,
-                                  CRSobj = crs(bathy))
-cpue_shape_aea@data$depth =  raster::extract(x = bathy,
-                                             y = cpue_shape_aea,
-                                             method = "simple")
+cpue_shape <- terra::vect(x = data[, c("LONGITUDE", "LATITUDE")],
+                          geom = c("LONGITUDE", "LATITUDE"),
+                          keepgeom = TRUE,
+                          crs = lonlat_crs)
+cpue_shape_aea <- terra::project(x = cpue_shape,
+                                 y = terra::crs(bathy))
+cpue_shape_aea$depth <- terra::extract(x = bathy,
+                                       y = cpue_shape_aea)$dblbnd
+cpue_shape_aea[, c("COMMON_NAME", "BOTTOM_DEPTH")] <-
+  data[, c("COMMON_NAME", "BOTTOM_DEPTH")]
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##  Plot bathymetry and station locations along with stations without
@@ -183,34 +185,31 @@ plot(bathy)
 plot(cpue_shape_aea,
      add = T,
      pch = ".")
-plot(cpue_shape_aea[is.na(cpue_shape_aea@data$depth),],
+plot(cpue_shape_aea[is.na(cpue_shape_aea$depth),],
      add = T,
      pch = 16,
      col = 'red')
 
-mismatched_idx = which(is.na(cpue_shape_aea@data$depth))
+mismatched_idx = which(is.na(cpue_shape_aea$depth))
 summary(data[mismatched_idx, "BOTTOM_DEPTH"])
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##  Plot correlation between EFH depths and reported depth from BTS
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 plot(depth ~ BOTTOM_DEPTH,
-     data = cpue_shape_aea@data,
-     subset = COMMON_NAME == "arrowtooth flounder",
+     data = cpue_shape_aea[cpue_shape_aea$COMMON_NAME == "Pacific cod", ],
      xlab = "Depth recorded by the BTS",
      ylab = "Depth extracted from EFH layer")
-with(subset(cpue_shape_aea@data,
-            subset = COMMON_NAME == "arrowtooth flounder"),
-     cor(depth, BOTTOM_DEPTH, use = "complete.obs"))
+cor(cpue_shape_aea$depth, cpue_shape_aea$BOTTOM_DEPTH, use = "complete.obs")
 abline(a = 0, b = 1)
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##  Attach depths to dataset, scaled
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-data$DEPTH_EFH = cpue_shape_aea@data$depth
-data$DEPTH_EFH[is.na(data$DEPTH_EFH)] = data$BOTTOM_DEPTH[is.na(data$DEPTH_EFH)]
-data$LOG10_DEPTH_EFH = log10(data$DEPTH_EFH)
+data$DEPTH_EFH <- cpue_shape_aea$depth
+data$DEPTH_EFH[is.na(data$DEPTH_EFH)] <-
+  data$BOTTOM_DEPTH[is.na(data$DEPTH_EFH)]
+data$LOG10_DEPTH_EFH <- log10(data$DEPTH_EFH)
 data$LOG10_BOTTOM_DEPTH <- log10(data$BOTTOM_DEPTH)
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

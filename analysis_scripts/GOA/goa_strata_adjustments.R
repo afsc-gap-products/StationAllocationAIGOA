@@ -113,6 +113,7 @@ for (idistrict in unique(depth_mods$manage_area)) {
   district_outline <- get(paste0(idistrict, "_shape"))
   district_bathy <- raster::crop(x = bathy,
                                  y = district_outline)
+  district_bathy <- raster::mask(x = district_bathy, mask = district_outline)
 
   ## Define modified stratum depth boundaries
   depth_boundary <- subset(x = depth_mods,
@@ -325,7 +326,7 @@ for (iarea in unique(depth_mods$manage_area)[]) {
 
   for (istratum in 1:n_strata) {
     plot(subset(stations,
-                STRATUM == unique(temp_area$STRATUM)[istratum]),
+                STRATUM == sort(unique(temp_area$STRATUM))[istratum]),
          col =   c(RColorBrewer::brewer.pal("Spectral",
                                             n = n_strata - 1),
                    "gray" )[istratum],
