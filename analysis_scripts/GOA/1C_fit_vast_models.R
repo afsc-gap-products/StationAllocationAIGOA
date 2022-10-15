@@ -263,7 +263,7 @@ for (ispp in spp_names) { ## Loop over species -- start
     plot(x = fit, working_dir = paste0(result_dir, "diagnostics/"))
 
     ## Save original model fit
-    saveRDS(list = "fit", file = paste0(result_dir, "/fit.RDS"))
+    saveRDS(object =  fit, file = paste0(result_dir, "/fit.RDS"))
 
     ##################################################
     ####   10-fold Cross Validation
@@ -305,11 +305,11 @@ for (ispp in spp_names) { ## Loop over species -- start
              max_gradient = fit_CV$parameter_estimates$max_gradient)
 
       ## Save fit
-      save(list = "fit_CV",
-           file = paste0(result_dir, "CV_", fI, "/fit.RData"))
-      save(cv_performance,
-           file = paste0(result_dir, "CV_", fI,
-                         "/crossval_fit_performance.RData"))
+      saveRDS(object =  fit_CV,
+              file = paste0(result_dir, "CV_", fI, "/fit.RDS"))
+      saveRDS(object = cv_performance,
+              file = paste0(result_dir, "CV_", fI,
+                            "/crossval_fit_performance.RDS"))
 
       if (depth_in_model) {
         # Must add data-frames to global environment (hope to fix in future)
