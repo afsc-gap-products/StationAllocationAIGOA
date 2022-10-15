@@ -37,9 +37,11 @@ GOA <- sumfish::getRacebase(year = c(start_year, current_year),
 data <- sumfish::sumHaul(GOA) %>% dplyr::mutate(REGION = "GOA")
 species_codes <- GOA$species
 
-##################################################
-####   Merge together bathymetry rasters
-##################################################
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##   Merge bathy rasters ----
+##   These rasters are really dense, so they are stored in parts and then
+##   "puzzled" togethered using terra::merge()
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 split_bathy <- list()
 n_split_rasters <- length(dir("data/GOA/split_goa_bathy_ras/")) / 2
 for (i in 1:n_split_rasters) {
