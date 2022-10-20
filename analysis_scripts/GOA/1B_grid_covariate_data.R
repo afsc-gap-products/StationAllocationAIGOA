@@ -22,12 +22,12 @@ lonlat_crs <- "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
 ##   "puzzled" togethered using terra::merge()
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 split_bathy <- list()
-n_split_rasters <- length(dir("data/GOA/split_goa_bathy_ras/")) / 2
+
+n_split_rasters <- length(grep(x = dir("data/GOA/processed_rasters/"),
+                               pattern = "aigoa"))
 for (i in 1:n_split_rasters) {
-  split_bathy[[i]] <- terra::rast(x = paste0("data/GOA/",
-                                             "split_goa_bathy_ras",
-                                             "/goa_bathy_processed_",
-                                             i, ".grd"))
+  split_bathy[[i]] <- terra::rast(x = paste0("data/GOA/processed_rasters/",
+                                             "aigoa_", i, ".tif"))
 }
 
 bathy <- do.call(what = terra::merge, args = split_bathy)
@@ -40,7 +40,7 @@ rm(split_bathy, i, n_split_rasters)
 ##   Extrapolation grid used for VAST, 2 nmi resolution (goa_grid)
 ##   CPUE data (data)
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-historical_stations <- terra::vect(x = "data/GOA/shapefiles/goagrid.shp")
+historical_stations <- terra::vect(x = "data/GOA/shapefiles_from_GDrive//goagrid.shp")
 historical_stations <- terra::project(x = historical_stations, y = bathy)
 
 historical_mask <- terra::aggregate(x = historical_stations)
@@ -63,7 +63,7 @@ vast_goa_grid_shape <- terra::vect(x = vast_goa_grid[, c("Lon", "Lat")],
 vast_goa_grid_shape_aea = terra::project(x = vast_goa_grid_shape, y = bathy)
 vast_goa_grid_shape_aea$Area_km2 <- vast_goa_grid$Area_km2
 vast_goa_grid_shape_aea$DEPTH_EFH <-
-  terra::extract(x = bathy, y = vast_goa_grid_shape_aea)$dbl
+  terra::extract(x = bathy, y = vast_goa_grid_shape_aea)$AIGOA_ba
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Remove cells not already in the goa grid
@@ -84,4 +84,4 @@ vast_goa_grid_shape_aea <-
 if(!dir.exists("data/GOA/")) dir.create("data/GOA/")
 write.csv(x = as.data.frame(vast_goa_grid_shape_aea),
           row.names = F,
-          file = "data/GOA/grid_goa.csv")
+          file = "data/GOA/vast_grid_goa.csv")

@@ -81,7 +81,7 @@ pck_version <- c("VAST" = "3.9.0",
 master_data <- read.csv(file = "data/GOA/goa_vast_data_input.csv" )
 spp_names <- sort(unique(master_data$COMMON_NAME))
 
-grid_goa <- read.csv("data/GOA/grid_goa.csv")
+grid_goa <- read.csv("data/GOA/vast_grid_goa.csv")
 grid_goa$LOG10_DEPTH <- log10(grid_goa$DEPTH_EFH)
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

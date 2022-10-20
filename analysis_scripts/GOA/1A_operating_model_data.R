@@ -43,16 +43,16 @@ species_codes <- GOA$species
 ##   "puzzled" togethered using terra::merge()
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 split_bathy <- list()
-n_split_rasters <- length(dir("data/GOA/split_goa_bathy_ras/")) / 2
+
+n_split_rasters <- length(grep(x = dir("data/GOA/processed_rasters/"),
+                               pattern = "aigoa"))
 for (i in 1:n_split_rasters) {
-  split_bathy[[i]] <- terra::rast(x = paste0("data/GOA/",
-                                             "split_goa_bathy_ras",
-                                             "/goa_bathy_processed_",
-                                             i, ".grd"))
+  split_bathy[[i]] <- terra::rast(x = paste0("data/GOA/processed_rasters/",
+                                             "aigoa_", i, ".tif"))
 }
 
 bathy <- do.call(what = terra::merge, args = split_bathy)
-rm(split_bathy, i)
+rm(split_bathy, i, n_split_rasters)
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Join species names
@@ -175,31 +175,15 @@ cpue_shape <- terra::vect(x = data[, c("LONGITUDE", "LATITUDE")],
 cpue_shape_aea <- terra::project(x = cpue_shape,
                                  y = terra::crs(bathy))
 cpue_shape_aea$depth <- terra::extract(x = bathy,
-                                       y = cpue_shape_aea)$dblbnd
+                                       y = cpue_shape_aea)$AIGOA_ba
 cpue_shape_aea[, c("COMMON_NAME", "BOTTOM_DEPTH")] <-
   data[, c("COMMON_NAME", "BOTTOM_DEPTH")]
-
-##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-##  Plot bathymetry and station locations along with stations without
-##   assigned depths
-##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-plot(bathy)
-plot(cpue_shape_aea,
-     add = T,
-     pch = ".")
-plot(cpue_shape_aea[is.na(cpue_shape_aea$depth),],
-     add = T,
-     pch = 16,
-     col = 'red')
-
-mismatched_idx = which(is.na(cpue_shape_aea$depth))
-summary(data[mismatched_idx, "BOTTOM_DEPTH"])
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##  Plot correlation between EFH depths and reported depth from BTS
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 plot(depth ~ BOTTOM_DEPTH,
-     data = cpue_shape_aea[cpue_shape_aea$COMMON_NAME == "Pacific cod", ],
+     data = as.data.frame(cpue_shape_aea)[cpue_shape_aea$COMMON_NAME == "Pacific cod", ],
      xlab = "Depth recorded by the BTS",
      ylab = "Depth extracted from EFH layer")
 cor(cpue_shape_aea$depth, cpue_shape_aea$BOTTOM_DEPTH, use = "complete.obs")
