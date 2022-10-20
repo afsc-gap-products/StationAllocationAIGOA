@@ -6,6 +6,8 @@
 ##                GOA grid. Then within each 5km grid cell, calculate the
 ##                total area and perimeter of the stratum component.
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+## Restart R Session before running
 rm(list = ls())
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -26,12 +28,12 @@ depth_mods <-
 ##   "puzzled" togethered using terra::merge()
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 split_bathy <- list()
-n_split_rasters <- length(dir("data/GOA/split_goa_bathy_ras/")) / 2
+
+n_split_rasters <- length(grep(x = dir("data/GOA/processed_rasters/"),
+                               pattern = "aigoa"))
 for (i in 1:n_split_rasters) {
-  split_bathy[[i]] <- terra::rast(x = paste0("data/GOA/",
-                                             "split_goa_bathy_ras",
-                                             "/goa_bathy_processed_",
-                                             i, ".grd"))
+  split_bathy[[i]] <- terra::rast(x = paste0("data/GOA/processed_rasters/",
+                                             "aigoa_", i, ".tif"))
 }
 
 bathy <- do.call(what = terra::merge, args = split_bathy)
@@ -47,8 +49,10 @@ rm(split_bathy, i, n_split_rasters)
 ##   goa_grid_2021: historical stations from Oracle (GOA.GOAGRID_GIS)
 ##   goa_strata_2021: historical strata from Oracle (GOA.GOA_STRATA)
 ##
-##   ak_land is AK land
+##   ak_land and ca_land are land polygons for Alaska and Canada
 ##   goa_grid_untrawl is a polygon of untrawlable areas
+##
+##   nmfs are polygons of the five management areas
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 goa_grid <- terra::vect(x = "data/GOA/shapefiles_from_GDrive/goagrid.shp")
 goa_domain <- terra::aggregate(x = goa_grid)
@@ -62,43 +66,25 @@ goa_grid_2021 <- readRDS(file = "data/GOA/grid_goa_2021.rds")
 goa_grid_2021 <- goa_grid_2021[order(goa_grid_2021$GOAGRID_ID), ]
 goa_strata_2021 <- readRDS(file = "data/GOA/grid_strata_2021.rds")
 
-ak_land <- terra::vect(x = "data/GOA/shapefiles_from_GDrive/alaska_dcw.shp")
-ak_land <- terra::project(x = ak_land, y = bathy)
-
 ak_land <- terra::vect(x = "G:/AI-GOA/shapefiles/AKland.shp")
 ak_land <- terra::project(x = ak_land, y = bathy)
+ak_land <- terra::aggregate(x = ak_land)
+
+ca_land <- terra::vect(x = "G:/AI-GOA/shapefiles/canada_dcw.shp")
+ca_land <- ca_land[ca_land$POPYADMIN %in% c("BRITISH COLUMBIA",
+                                            "YUKON TERRITORY",
+                                            "NORTHWEST TERRITORIES") ]
+ca_land <- terra::project(x = ca_land, y = bathy)
+ca_land <- terra::aggregate(x = ca_land)
 
 goa_grid_untrawl <-
   terra::vect(x = "data/GOA/processed_shapefiles/GOA_untrawl_2021.shp")
 
-##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-##   Management areas ----
-##   Create masks for each management area in aea projection and transform
-##   goa_domain to aea projection.
-##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Shumagin_shape <- terra::crop(x = goa_domain_latlon,
-                              y = terra::ext(x = c(-176, -159, 50, 65)) )
-Shumagin_shape <- terra::project(x = Shumagin_shape, y = bathy)
-
-Chirikof_shape <- terra::crop(x = goa_domain_latlon,
-                              y = terra::ext(c(-159, -154, 50, 59)))
-Chirikof_shape <- terra::project(x = Chirikof_shape, y = bathy)
-
-Kodiak_shape <- terra::crop(x = goa_domain_latlon,
-                            y = terra::ext(c(-154, -147, 50, 65)))
-Kodiak_shape <- terra::project(x = Kodiak_shape, y = bathy)
-W_Cook_Inlet <- terra::crop(x = goa_domain_latlon,
-                            y = terra::ext(c(-154.5, -154, 59.1,59.5)))
-W_Cook_Inlet <- terra::project(x = W_Cook_Inlet, y = bathy)
-Kodiak_shape <- terra::aggregate(x = rbind(Kodiak_shape, W_Cook_Inlet))
-
-Yakutat_shape <- terra::crop(x = goa_domain_latlon,
-                             y = terra::ext(c(-147, -140, 50, 65)))
-Yakutat_shape <- terra::project(x = Yakutat_shape, y = bathy)
-
-Southeastern_shape <- terra::crop(x = goa_domain_latlon,
-                                  y = terra::ext(c(-140, -132, 50, 65)))
-Southeastern_shape <- terra::project(x = Southeastern_shape, y = bathy)
+nmfs <- terra::vect(x = "data/GOA/shapefiles_from_GDrive/GOA_Shapes.shp")
+nmfs <- terra::project(x = nmfs, y = bathy)
+nmfs$area_name <- c("Southeastern", "Southeastern", "Shumagin", "Chirikof",
+               "Kodiak", "Yakutat", NA)
+nmfs <- terra::aggregate(x = nmfs, by = "area_name")
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Create strata polygons ----
@@ -106,17 +92,15 @@ Southeastern_shape <- terra::project(x = Southeastern_shape, y = bathy)
 ##   and append to strata_list
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 strata_list <- list()
-for (idistrict in unique(depth_mods$manage_area)) {
+for (idistrict in unique(depth_mods$manage_area)) { ## Loop over district --st.
 
   ## Crop bathymetry raster to just the management area
-  district_outline <- get(paste0(idistrict, "_shape"))
+  district_outline <- nmfs[nmfs$area_name == idistrict]
+
   district_bathy <- terra::crop(x = bathy,
                                 y = district_outline)
   district_bathy <- terra::mask(x = district_bathy,
-                                mask = district_outline)
-
-  ## Crop bathymetry raster to values between 1 - 1000 m (GOA survey bounds)
-  values(district_bathy)[values(district_bathy) > 1000] <- NA
+                                mask = goa_domain)
 
   ## Define modified stratum depth boundaries
   depth_boundary <- subset(x = depth_mods,
@@ -133,8 +117,8 @@ for (idistrict in unique(depth_mods$manage_area)) {
   strata_poly <- terra::as.polygons(district_bathy)
 
   ## Create dataframe of stratum information
-  strata_poly[, names(depth_mods)] <- subset(x = depth_mods,
-                                             subset = manage_area == idistrict)
+  strata_poly[, names(depth_mods)] <-
+      subset(x = depth_mods, subset = manage_area == idistrict)
 
   strata_poly$AREA_KM2 <- terra::expanse(x = strata_poly, unit = "km")
   strata_poly$PER_KM <- terra::perim(x = strata_poly) / 1000
@@ -143,7 +127,7 @@ for (idistrict in unique(depth_mods$manage_area)) {
   strata_list <- c(strata_list, list(strata_poly))
 
   print(paste("Finished with the", idistrict, "region"))
-}
+} ## Loop over district -- end
 rm(idistrict, strata_poly, district_outline, district_bathy)
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -158,8 +142,8 @@ strata_list <- do.call(what = rbind, args = strata_list)
 goa_full_grid <- terra::aggregate(x = goa_grid,
                                   by = "ID",
                                   fun = sum)
-goa_full_grid <- goa_full_grid[, c("ID", "agg_AREA_KM2", "agg_PERIMETER_")]
-names(goa_full_grid) <- c("ID", "AREA_KM2", "PERIMETER_KM")
+goa_full_grid <- goa_full_grid[, c("ID", "agg_AREA_KM2")]
+names(goa_full_grid) <- c("ID", "AREA_KM2")
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   New stations ----
@@ -202,6 +186,7 @@ stations$untrawl_area_km2 <- 0
 
 temp_overlap_df <- as.data.frame(overlap_with_trawl_polygon)
 temp_stations_df <- as.data.frame(stations)
+
 temp_idx <- sapply(X = 1:length(overlap_with_trawl_polygon),
                    FUN = function(x) {
                      temp_id <- temp_overlap_df$ID[x]
@@ -217,15 +202,6 @@ stations$trawl_area_km2 <-
   round(x = stations$AREA_KM2 - stations$untrawl_area_km2, digits = 6)
 
 rm(temp_overlap_df, temp_stations_df, temp_idx)
-
-# tail(as.data.frame(stations)[stations$trawlable == FALSE, c(1, 2, 14, 15)])
-#
-# temp_id <- "99-50"
-# plot(stations[stations$ID == temp_id], col = rainbow(3))
-# plot(overlap_with_trawl_polygon[overlap_with_trawl_polygon$ID == temp_id],
-#      add = TRUE, density = 10)
-#
-# as.data.frame(stations)[stations$ID == temp_id, c(1, 2, 15, 14)]
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Format stations
@@ -259,33 +235,6 @@ stations[, !names(stations) %in% names(goa_grid_2023)] <- NULL
 leftovers <- terra::erase(x = goa_grid, y = stations)
 leftovers[, "unk_area_km2"] <- terra::expanse(x = leftovers) / 1e6
 leftovers[, !names(leftovers) %in% c("ID", "STRATUM", "unk_area_km2")] <- NULL
-
-which(table(lefovers$ID) == 3)
-
-temp_id <- "306-164"
-n_knowns <- sum(stations$STATIONID == temp_id)
-n_unknowns <- sum(leftovers$ID == temp_id)
-plot(stations[stations$STATIONID == temp_id,], col = rainbow(n_knowns) )
-plot(leftovers[leftovers$ID == temp_id, ],
-     add = TRUE, col = grey.colors(n_unknowns))
-# plot(overlap_with_trawl_polygon[overlap_with_trawl_polygon$ID == temp_id],
-     # add = TRUE, density = 10)
-
-plot(terra::sharedPaths(x = stations[stations$STATIONID == temp_id,][1, ],
-                        y = rbind(leftovers[leftovers$ID == temp_id, ],
-                                  stations[stations$STATIONID == temp_id,])),
-     lwd = 4, add = TRUE)
-
-as.data.frame(stations[stations$STATIONID == temp_id,] )
-as.data.frame(leftovers[leftovers$ID == temp_id, ])
-
-aggregate(unk_area_km2 ~ STRATUM,
-          data = as.data.frame(leftovers),
-          FUN = function(x) round(sum(x)))
-aggregate(unk_area_km2 ~ STRATUM,
-          data = as.data.frame(leftovers),
-          FUN = length )
-
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Format strata
@@ -330,34 +279,27 @@ terra::writeVector(x = stations,
                    filename = paste0("data/GOA/processed_shapefiles/",
                                      "goa_stations_2023.shp"),
                    overwrite = TRUE)
-terra::writeVector(x = overlap_with_trawl_polygon,
-                   filename = paste0("data/GOA/processed_shapefiles/",
-                                     "UT_areas_2023.shp"),
-                   overwrite = TRUE)
-terra::writeVector(x = leftovers,
-                   filename = paste0("data/GOA/processed_shapefiles/",
-                                     "areas_NA_by_bathy.shp"),
-                   overwrite = TRUE)
 
 usethis::use_data(name = stations, overwrite = TRUE)
 usethis::use_data(name = strata_list, overwrite = TRUE)
-usethis::use_data(name = ak_land, overwrite = TRUE)
-usethis::use_data(name = depth_mods, overwrite = TRUE)
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Plots
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 pdf(file = "data/GOA/processed_shapefiles/updated_strata.pdf",
-    width = 6, height = 6, onefile = TRUE)
-for (iarea in unique(depth_mods$manage_area)[]) {
-  par(mar = c(0.5, 0.5, 0.5, 0.5))
+    width = 8, height = 6, onefile = TRUE)
+for (iarea in unique(depth_mods$manage_area)) { ## Loop over area -- start
+
+  ## temporary objects
   n_strata <- with(depth_mods, table(manage_area))[iarea]
   temp_strata <- depth_mods$stratum[depth_mods$manage_area == iarea]
-  temp_area <- terra::mask(x = stations, mask = get(paste0(iarea, "_shape")))
+  temp_area <- terra::mask(x = stations, mask = nmfs[nmfs$area_name == iarea] )
 
+  ## Base layer
   plot(temp_area, axes = F, col = "white", border = F)
 
+  ## Plot stations color coded by strata
   for (istratum in 1:n_strata) {
     plot(stations[stations$STRATUM == temp_strata[istratum]],
          col =   c(RColorBrewer::brewer.pal("Spectral",
@@ -366,77 +308,27 @@ for (iarea in unique(depth_mods$manage_area)[]) {
          border = F, add = TRUE)
   }
 
-  ##
+  ## Plot areas not covered by bathymery
   plot(terra::mask(x = leftovers,
-                   mask = get(paste0(iarea, "_shape"))),
+                   mask = nmfs[nmfs$area_name == iarea]),
        col = "black", add = TRUE, border = F)
 
-  # plot(terra::mask(x = leftovers[floor(leftovers$STRATUM / 100) == 5],
-  #                  mask = get(paste0(iarea, "_shape"))),
-  #      col = "purple", add = TRUE, border = F)
-  # plot(terra::mask(x = leftovers[floor(leftovers$STRATUM / 100) == 0],
-  #                  mask = get(paste0(iarea, "_shape"))),
-  #      col = RColorBrewer::brewer.pal("Spectral",
-  #                                     n = n_strata - 1)[1],
-  #      add = TRUE, border = F)
-  #
-  # if (iarea == "Shumagin") {
-  #   plot(terra::mask(x = leftovers[leftovers$STRATUM == "410"],
-  #                    mask = get(paste0(iarea, "_shape"))),
-  #        col = RColorBrewer::brewer.pal("Spectral",
-  #                                       n = n_strata - 1)[5],
-  #        add = TRUE, border = F)
-  #   plot(terra::mask(x = leftovers[leftovers$STRATUM == "310"],
-  #                    mask = get(paste0(iarea, "_shape"))),
-  #        col = RColorBrewer::brewer.pal("Spectral",
-  #                                       n = n_strata - 1)[4],
-  #        add = TRUE, border = F)
-  # }
-  #
-  # if (iarea == "Kodiak") {
-  #   plot(terra::mask(x = leftovers[leftovers$STRATUM == "430"],
-  #                    mask = get(paste0(iarea, "_shape"))),
-  #        col = RColorBrewer::brewer.pal("Spectral",
-  #                                       n = n_strata - 1)[4],
-  #        add = TRUE, border = F)
-  # }
-  #
-  # if (iarea == "Yakutat") {
-  #   plot(terra::mask(x = leftovers[leftovers$STRATUM %in% c("340", "341")],
-  #                    mask = get(paste0(iarea, "_shape"))),
-  #        col = RColorBrewer::brewer.pal("Spectral",
-  #                                       n = n_strata - 1)[4],
-  #        add = TRUE, border = F)
-  #   plot(terra::mask(x = leftovers[leftovers$STRATUM %in% c("440")],
-  #                    mask = get(paste0(iarea, "_shape"))),
-  #        col = RColorBrewer::brewer.pal("Spectral",
-  #                                       n = n_strata - 1)[5],
-  #        add = TRUE, border = F)
-  # }
-  #
-  # if (iarea == "Southeastern") {
-  #   plot(terra::mask(x = leftovers[leftovers$STRATUM %in% c("340", "341",
-  #                                                           "350", "351",
-  #                                                           "440", "450")],
-  #                    mask = get(paste0(iarea, "_shape"))),
-  #        col = RColorBrewer::brewer.pal("Spectral",
-  #                                       n = n_strata - 1)[4],
-  #        add = TRUE, border = F)
-  # }
-
-
+  ## Untrawlable areas
   plot(terra::mask(x = goa_grid_untrawl,
-                   mask = get(paste0(iarea, "_shape"))),
+                   mask = nmfs[nmfs$area_name == iarea]),
        col = rgb(0, 0, 0, 0.5), add = TRUE, border = FALSE)
 
-  # plot(ak_land, add = TRUE, col = "black", border = F)
+  ## Land
+  plot(ak_land, add = TRUE, col = "tan", border = T, lwd = 0.5)
+  plot(ca_land, add = TRUE, col = "tan", border = T, lwd = 0.5)
 
-  # plot(strata_list[strata_list$manage_area == iarea], lwd = 0.1, add = TRUE)
+  ## Strata
+  plot(strata_list[strata_list$INPFC_AREA == iarea], lwd = 0.05, add = TRUE)
 
   ## Legend
   legend_labels <- with(subset(depth_mods, manage_area == iarea),
                         paste0(lower_depth_m, " - ", upper_depth_m, " m"))
-  legend_labels <- c(legend_labels, "Untrawlable", "Not Defined by\nBathy Raster")
+  legend_labels <- c(legend_labels, "Untrawlable", "Not Defined")
 
   legend(c("Shumagin" = "topleft", "Chirikof" = "topleft",
            "Kodiak" = "bottomright", "Yakutat" = "bottom",
@@ -446,7 +338,5 @@ for (iarea in unique(depth_mods$manage_area)[]) {
          fill = c(RColorBrewer::brewer.pal("Spectral", n = n_strata - 1),
                   "purple", rgb(0, 0, 0, 0.5), "black"))
   mtext(side = 3, line = -2, text = iarea, font = 2, cex = 1.5)
-}
+}  ## Loop over area -- end
 dev.off()
-
-
