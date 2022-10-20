@@ -119,4 +119,5 @@ bathy_split <- terra::makeTiles(
   x = aigoa_patched,
   y = terra::rast(x = matrix(data = 1:9, nrow = 3, ncol = 3),
                   extent = terra::ext(aigoa_patched)),
-  filename = "data/GOA/processed_rasters/aigoa_.tif")
+  filename = "data/GOA/processed_rasters/aigoa_.tif",
+  overwrite = TRUE)
