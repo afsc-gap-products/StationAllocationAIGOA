@@ -4,6 +4,8 @@
 ## Description:   Loop through every CV fold and extract performance metrics
 ##                Maximum Gradient, RRMSE, Predictive Joint Negative LogLike.
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+## Restart R Session before running
 rm(list = ls())
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -17,7 +19,7 @@ library(VAST)
 ##   Set VAST_dir to the external drive that the VAST runs are stored
 ##   Import the VAST data input
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-VAST_dir <- "E:/VAST_Runs_GOA_2023/"
+VAST_dir <- "G:/Oyafuso/VAST_Runs_GOA_2023/"
 data_df <- read.csv("data/GOA/goa_vast_data_input.csv")
 
 ##################################################
@@ -33,37 +35,29 @@ cross_val_results <- data.frame()
 spp_names <- sort(unique(data_df$COMMON_NAME))
 for (ispp in spp_names){ ## Loop through species -- start
 
-  mean_obs_cpue <- with(subset(data_df, COMMON_NAME == ispp),
-                        mean(WEIGHT / EFFORT))
-
   for (depth_in_model in c("",
                            "_depth")) { ## Loop through depth models -- start
     for (icv in 1:10) { ## Loop through cv folds -- start
 
       ## Only go through CV folds where a model run was successful
       fit_file <- paste0(VAST_dir, ispp, depth_in_model,
-                         "/CV_", icv, "/", "crossval_fit_performance.RData")
+                         "/CV_", icv, "/", "crossval_fit_performance.RDS")
 
       if(file.exists(fit_file)) {
 
         ## Load performance metrics
-        load(paste0(VAST_dir, ispp, depth_in_model,
-                    "/CV_", icv, "/", "crossval_fit_performance.RData"))
+        cv_performance <- readRDS(paste0(VAST_dir, ispp, depth_in_model,
+                    "/CV_", icv, "/", "crossval_fit_performance.RDS"))
         load(paste0(VAST_dir, ispp, depth_in_model,
                     "/CV_", icv, "/", "parameter_estimates.RData"))
 
-        ## rbind the rrmse, max gradient, and pred_jnll
-        rmse <- with(cv_performance$cpues,
-                     sqrt(mean((pred_cpue - obs_cpue)^2, na.rm = TRUE)) )
-        rrmse <- rmse / mean_obs_cpue
-
+        ## Record results
         cross_val_results <-
           rbind(cross_val_results,
                 data.frame(spp_name = ispp,
                            depth_in_model = ifelse(depth_in_model == "", F, T),
                            cv_fold = icv,
                            max_gradient = parameter_estimates$max_gradient,
-                           rrmse = rrmse,
                            pred_jnll = cv_performance$prednll ))
 
       }  ## Loop through depth models -- start
@@ -81,15 +75,6 @@ converged <-
                                  data = cross_val_results),
                 key = depth_in_model,
                 value = max_gradient)
-
-rrmse <-
-  tidyr::spread(data = aggregate(rrmse ~ depth_in_model + spp_name,
-                                 FUN = function(x) round(mean(x, na.rm = T),
-                                                         digits = 3),
-                                 data = cross_val_results,
-                                 subset = max_gradient < 1e-4),
-                key = depth_in_model,
-                value = rrmse)
 
 pred_jnll <-
   tidyr::spread(data = aggregate(pred_jnll ~ depth_in_model + spp_name,
@@ -136,5 +121,5 @@ for(irow in 1:nrow(pred_jnll)) { ## Loop over species -- start
 ####   Save
 ##################################################
 saveRDS(object = D_gct, file = "data/GOA/VAST_fit_D_gct.RDS")
-save(list = c("converged", "cross_val_results", "pred_jnll", "rrmse"),
+save(list = c("converged", "cross_val_results", "pred_jnll"),
      file = "data/GOA/prednll_VAST_models.RData")
