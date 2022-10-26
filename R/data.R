@@ -16,7 +16,7 @@
 
 #' Gulf of Alaska stations as of the 2023 restratification
 #'
-#' @format ## `stations`
+#' @format
 #' A data frame with 25504 rows and 14 columns. Useful columns are:
 #' \describe{
 #'   \item{STATIONID}{ID of the 5 km grid cell to which the station belongs}
@@ -33,7 +33,7 @@
 
 #' Gulf of Alaska stations as of the 2023 restratification
 #'
-#' @format ## `ak_land`
+#' @format
 #' A data frame with 25504 rows and 14 columns. Useful columns are:
 #' \describe{
 #'   \item{STATIONID}{ID of the 5 km grid cell to which the station belongs}
@@ -49,7 +49,7 @@
 
 #' Gulf of Alaska stations as of the 2023 restratification
 #'
-#' @format ## `ca_land`
+#' @format
 #' A data frame with 25504 rows and 14 columns. Useful columns are:
 #' \describe{
 #'   \item{STATIONID}{ID of the 5 km grid cell to which the station belongs}
@@ -65,7 +65,7 @@
 
 #' Gulf of Alaska stations as of the 2023 restratification
 #'
-#' @format ## `strata_list`
+#' @format
 #' A data frame with 25504 rows and 14 columns. Useful columns are:
 #' \describe{
 #'   \item{STATIONID}{ID of the 5 km grid cell to which the station belongs}
@@ -81,7 +81,7 @@
 
 #' Gulf of Alaska stations as of the 2023 restratification
 #'
-#' @format ## `depth_mods`
+#' @format ##
 #' A data frame with 25504 rows and 14 columns. Useful columns are:
 #' \describe{
 #'   \item{STATIONID}{ID of the 5 km grid cell to which the station belongs}
@@ -97,7 +97,7 @@
 
 #' Gulf of Alaska stations as of the 2023 restratification
 #'
-#' @format ## `grid_goa_sp`
+#' @format ##
 #' A data frame with 25504 rows and 14 columns. Useful columns are:
 #' \describe{
 #'   \item{STATIONID}{ID of the 5 km grid cell to which the station belongs}
