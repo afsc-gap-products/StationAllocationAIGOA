@@ -7,6 +7,8 @@
 ##
 ##                Set up other constants used in downstream processes
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+## Restart R Session before running
 rm(list = ls())
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -15,20 +17,18 @@ rm(list = ls())
 library(devtools)
 devtools::install_github(repo = "zoyafuso-NOAA/SamplingStrata")
 library(SamplingStrata)
-library(rgdal)
-library(raster)
-library(sp)
+library(terra)
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Load the true density, true index, and spatial domain dataset
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # load(file = "data/GOA/prednll_VAST_models.RData")
-grid_goa <- read.csv(file = "data/GOA/grid_goa.csv")
+grid_goa <- read.csv(file = "data/GOA/vast_grid_goa.csv")
 D_gct <- readRDS("data/GOA/VAST_fit_D_gct.RDS")
 
-## Think about ways to put this in package!!
-updated_goa_strata <- rgdal::readOGR(dsn = "C:/Users/zack.oyafuso/Work/GitHub/Optimal_Allocation_GoA/products/updated_goa_strata/updated_goa_strata.shp")
-depth_mods <- read.csv("C:/Users/zack.oyafuso/Work/GitHub/Optimal_Allocation_GoA/products/depth_modifications.csv")
+updated_goa_strata <-
+  terra::vect(x = "data/GOA/processed_shapefiles/goa_strata_2023.shp")
+depth_mods <- read.csv("data/GOA/strata_boundaries/depth_modifications_2023.csv")
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Constants used throughout all scripts
@@ -38,29 +38,28 @@ lonlat_crs <- "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
 utm_crs <- "+proj=utm +zone=5N +units=km"
 n_years <- dim(D_gct)[3]
 n_spp <- dim(D_gct)[2]
+n_cells <- dim(D_gct)[1]
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Assign grid points to the new strata
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-grid_goa_sp <- sp::SpatialPointsDataFrame(
-  coords = grid_goa[, c("Lon", "Lat")],
-  proj4string = sp::CRS(lonlat_crs),
-  data = data.frame(ID = 1:nrow(grid_goa)))
-grid_goa_sp <- sp::spTransform(x = grid_goa_sp,
-                               CRSobj = crs(updated_goa_strata))
+grid_goa_sp <- terra::vect(x = cbind(ID = 1:nrow(grid_goa), grid_goa),
+                           geom = c("Lon", "Lat"),
+                           crs = lonlat_crs)
+grid_goa_sp <- terra::project(x = grid_goa_sp,
+                              y = updated_goa_strata)
 
-grid_goa_sp <- raster::intersect(x = grid_goa_sp,
-                                 y = updated_goa_strata)
-grid_goa_sp <- subset(x = grid_goa_sp,
-                      subset = STRATUM %in% depth_mods$stratum[depth_mods$used])
-
-grid_goa_sp <- sp::remove.duplicates(grid_goa_sp)
+grid_goa_sp <-
+  terra::intersect(x = grid_goa_sp,
+                   y = updated_goa_strata[, c("stratum", "manage_are")])
+grid_goa_sp <- grid_goa_sp[grid_goa_sp$stratum %in%
+                             depth_mods$stratum[depth_mods$used], ]
 
 removed_cells <- (1:n_cells)[-grid_goa_sp$ID]
 D_gct <- D_gct[-removed_cells, , ]
 n_cells <- dim(D_gct)[1]
 
-grid_goa_sp <- grid_goa_sp[, 1:3]
+# grid_goa_sp <- grid_goa_sp[, 1:3]
 
 ##################################################
 ####   Our df will have fields for:
@@ -103,5 +102,3 @@ attributes(frame)$spp_name <- dimnames(D_gct)[[2]]
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 usethis::use_data(frame, overwrite = TRUE)
 usethis::use_data(grid_goa_sp, overwrite = TRUE)
-
-usethis::use_build_ignore("data/GOA")
