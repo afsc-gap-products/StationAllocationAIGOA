@@ -215,7 +215,7 @@ goa_grid_2023 <- data.frame("GOAGRID#" = goagrid_ids + 1,
                             "TRAWLABLE" = stations$trawlable,
                             "TRAWLABLE_AREA_KM2" = stations$trawl_area_km2,
                             "AREA_KM2" = stations$AREA_KM2,
-                            "PERIMETER_KM2" = stations$PER_KM,
+                            "PERIMETER_KM" = stations$PER_KM,
                             "STRATUM" = stations$stratum,
                             "STATIONID" = stations$ID,
                             "CENTER_LAT" = stations$Lat,
@@ -282,6 +282,9 @@ terra::writeVector(x = stations,
 
 usethis::use_data(name = stations, overwrite = TRUE)
 usethis::use_data(name = strata_list, overwrite = TRUE)
+usethis::use_data(name = ak_land, overwrite = TRUE)
+usethis::use_data(name = ca_land, overwrite = TRUE)
+usethis::use_data(name = depth_mods, overwrite = TRUE)
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Plots
