@@ -10,4 +10,3 @@
 #'   \item{manage_are}{management area}
 #' }
 "goa_grid_sp"
-
