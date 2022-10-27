@@ -11,17 +11,29 @@ goa_allocate_stations(
     "flathead sole", "Pacific halibut", "southern rock sole", "northern rock sole",
     "Pacific ocean perch", "silvergray rockfish", "northern rockfish", "dusky rockfish",
     "BS and RE rockfishes", "Dover sole", "shortspine thornyhead"),
-  max_iter = 5000
+  max_iter = 5000,
+  year = 2023,
+  vessel_names = c("vessel_1", "vessel_2"),
+  output_dir = NULL
 )
 }
 \arguments{
 \item{n}{integer.Total number of stations}
 
-\item{min_n_per_stratum}{integer. Minimum number of stations to assign a stratum}
+\item{min_n_per_stratum}{integer. Minimum number of stations to assign a
+stratum}
 
 \item{species}{character vector. See details for full list of species}
 
-\item{max_iter}{integer. Maximum number of times for bethel algorithm to run to converge to `n`.}
+\item{max_iter}{integer. Maximum number of times for bethel algorithm to run
+to converge to `n`.}
+
+\item{year}{integer. The year as an integer is used as a seed for the random
+number generator when drawing random stations.}
+
+\item{output_dir}{character string. Path for outputs.}
+
+\item{vesssel_names}{character vector.}
 }
 \value{
 A named vector of stations across strata
