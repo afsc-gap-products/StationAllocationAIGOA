@@ -55,11 +55,19 @@ grid_goa_sp <-
 grid_goa_sp <- grid_goa_sp[grid_goa_sp$stratum %in%
                              depth_mods$stratum[depth_mods$used], ]
 
-removed_cells <- (1:n_cells)[-grid_goa_sp$ID]
-D_gct <- D_gct[-removed_cells, , ]
-n_cells <- dim(D_gct)[1]
 
-# grid_goa_sp <- grid_goa_sp[, 1:3]
+## remove duplicates
+rm_idx <- c()
+
+for (idx in names(which(table(grid_goa_sp$ID) == 2))) {
+  rm_idx <- c(rm_idx, which(grid_goa_sp$ID == idx)[1])
+}
+
+grid_goa_sp <- grid_goa_sp[-rm_idx, ]
+
+removed_cells <- (1:n_cells)[-grid_goa_sp$ID]
+D_gct <- D_gct[-c(removed_cells, rm_idx), , ]
+n_cells <- dim(D_gct)[1]
 
 ##################################################
 ####   Our df will have fields for:
