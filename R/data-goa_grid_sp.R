@@ -9,4 +9,4 @@
 #'   \item{stratum}{stratum name}
 #'   \item{manage_are}{management area}
 #' }
-"goa_grid_sp"
+"grid_goa_sp"
