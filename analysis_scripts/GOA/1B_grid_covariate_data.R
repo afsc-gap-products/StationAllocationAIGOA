@@ -75,8 +75,8 @@ vast_goa_grid_shape_aea <- terra::intersect(x = vast_goa_grid_shape_aea,
 ##  Remove cells with depths outside the observed range to the range
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 vast_goa_grid_shape_aea <-
-  vast_goa_grid_shape_aea[vast_goa_grid_shape_aea$DEPTH_EFH >= min(data$DEPTH_EFH) &
-                            vast_goa_grid_shape_aea$DEPTH_EFH <= max(data$DEPTH_EFH),]
+  vast_goa_grid_shape_aea[vast_goa_grid_shape_aea$DEPTH_EFH >= min(data$BOTTOM_DEPTH) &
+                            vast_goa_grid_shape_aea$DEPTH_EFH <= max(data$BOTTOM_DEPTH),]
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##  Save
