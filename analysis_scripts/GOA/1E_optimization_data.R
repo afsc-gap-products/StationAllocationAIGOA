@@ -91,6 +91,7 @@ frame <- cbind(
              depth = grid_goa_sp$DEPTH_EFH[-c(removed_cells, rm_idx)],
              eastings_m = geom(grid_goa_sp)[-c(removed_cells, rm_idx), "x"],
              northings_m = geom(grid_goa_sp)[-c(removed_cells, rm_idx), "y"],
+             stratum = grid_goa_sp$STRATUM[-c(removed_cells, rm_idx)],
              WEIGHT = n_years),
 
   matrix(data = apply(X = D_gct,
