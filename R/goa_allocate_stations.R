@@ -43,23 +43,23 @@ goa_allocate_stations <-
            vessel_names = c("vessel_1", "vessel_2"),
            output_dir = NULL)
   {
-return(StationAllocationAIGOA::goa_grid_2023)
+# return(StationAllocationAIGOA::goa_grid_2023)
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     ##   Check that species list matches current species list
     ##   Check that year is an integer
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # if (!all(species %in% attributes(frame)$sp))
-    #   stop(paste("message from StationAllocationAIGOA::goa_allocate_stations:",
-    #              "Argument `species` contains names that are not currently",
-    #              "in the list of included species. See",
-    #              "?StationAllocationAIGOA::goa_allocate_stations",
-    #              "for full species list"))
-    #
-    # if (!is.null(output_dir))
-    #   if (!dir.exists(output_dir))
-    #     stop(paste("message from StationAllocationAIGOA::goa_allocate_stations:",
-    #                "directory path `output_dir` does not exist, please provide",
-    #                "a path for output products"))
+    if (!all(species %in% attributes(StationAllocationAIGOA::frame)$sp))
+      stop(paste("message from StationAllocationAIGOA::goa_allocate_stations:",
+                 "Argument `species` contains names that are not currently",
+                 "in the list of included species. See",
+                 "?StationAllocationAIGOA::goa_allocate_stations",
+                 "for full species list"))
+
+    if (!is.null(output_dir))
+      if (!dir.exists(output_dir))
+        stop(paste("message from StationAllocationAIGOA::goa_allocate_stations:",
+                   "directory path `output_dir` does not exist, please provide",
+                   "a path for output products"))
 
     # ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # ##   Constants
