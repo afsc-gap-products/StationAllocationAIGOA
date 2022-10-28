@@ -43,7 +43,7 @@ goa_allocate_stations <-
            vessel_names = c("vessel_1", "vessel_2"),
            output_dir = NULL)
   {
-return(frame)
+return(StationAllocationAIGOA::frame)
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     ##   Check that species list matches current species list
     ##   Check that year is an integer
