@@ -51,7 +51,7 @@ grid_goa_sp <- terra::project(x = grid_goa_sp,
 
 grid_goa_sp <-
   terra::intersect(x = grid_goa_sp,
-                   y = updated_goa_strata[, c("stratum", "manage_are")])
+                   y = updated_goa_strata[, c("STRATUM")])
 grid_goa_sp <- grid_goa_sp[grid_goa_sp$stratum %in%
                              depth_mods$stratum[depth_mods$used], ]
 
@@ -88,6 +88,9 @@ n_cells <- dim(D_gct)[1]
 frame <- cbind(
   data.frame(domainvalue = 1,
              id = 1:n_cells,
+             depth = grid_goa_sp$DEPTH_EFH[-c(removed_cells, rm_idx)],
+             eastings_m = geom(grid_goa_sp)[-c(removed_cells, rm_idx), "x"],
+             northings_m = geom(grid_goa_sp)[-c(removed_cells, rm_idx), "y"],
              WEIGHT = n_years),
 
   matrix(data = apply(X = D_gct,
@@ -109,4 +112,3 @@ attributes(frame)$spp_name <- dimnames(D_gct)[[2]]
 ##   Save Data
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 usethis::use_data(frame, overwrite = TRUE)
-usethis::use_data(grid_goa_sp, overwrite = TRUE)
