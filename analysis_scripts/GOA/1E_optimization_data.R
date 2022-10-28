@@ -52,7 +52,7 @@ grid_goa_sp <- terra::project(x = grid_goa_sp,
 grid_goa_sp <-
   terra::intersect(x = grid_goa_sp,
                    y = updated_goa_strata[, c("STRATUM")])
-grid_goa_sp <- grid_goa_sp[grid_goa_sp$stratum %in%
+grid_goa_sp <- grid_goa_sp[grid_goa_sp$STRATUM %in%
                              depth_mods$stratum[depth_mods$used], ]
 
 
@@ -66,7 +66,7 @@ for (idx in names(which(table(grid_goa_sp$ID) == 2))) {
 grid_goa_sp <- grid_goa_sp[-rm_idx, ]
 
 removed_cells <- (1:n_cells)[-grid_goa_sp$ID]
-D_gct <- D_gct[-c(removed_cells, rm_idx), , ]
+D_gct <- D_gct[-c(removed_cells), , ]
 n_cells <- dim(D_gct)[1]
 
 ##################################################
@@ -88,10 +88,10 @@ n_cells <- dim(D_gct)[1]
 frame <- cbind(
   data.frame(domainvalue = 1,
              id = 1:n_cells,
-             depth = grid_goa_sp$DEPTH_EFH[-c(removed_cells, rm_idx)],
-             eastings_m = geom(grid_goa_sp)[-c(removed_cells, rm_idx), "x"],
-             northings_m = geom(grid_goa_sp)[-c(removed_cells, rm_idx), "y"],
-             stratum = grid_goa_sp$STRATUM[-c(removed_cells, rm_idx)],
+             depth = grid_goa_sp$DEPTH_EFH,
+             eastings_m = geom(grid_goa_sp)[, "x"],
+             northings_m = geom(grid_goa_sp)[, "y"],
+             stratum = grid_goa_sp$STRATUM[],
              WEIGHT = n_years),
 
   matrix(data = apply(X = D_gct,
