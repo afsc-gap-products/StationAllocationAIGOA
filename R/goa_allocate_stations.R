@@ -1,7 +1,10 @@
 #' Gulf of Alaska Bottom Trawl Survey: Allocate stations across strata
 #'
 #' @description
-#' To be filled in
+#' Allocates stations under the Gulf of Alaska stratified random design, last
+#' restratified in 2023. Species information is incorporated from the survey
+#' years between 1996-2021. Bethel algorithm is used to conduct the multispecies
+#' station allocation.
 #'
 #' @author Zack Oyafuso \email{zack.oyafuso@@noaa.gov}
 #'
@@ -14,9 +17,37 @@
 #' @param year integer. The year as an integer is used as a seed for the random
 #'             number generator when drawing random stations.
 #' @param vesssel_names character vector.
-#' @param output_dir character string. Path for outputs.
 #'
-#' @return A named vector of stations across strata
+#' @return A named list with elements:
+#' 1) ms_allocation: vector, allocation of `n` stations across strata using
+#'                   information from the `species` vector.
+#' 2) drawn_stations: dataframe with `n` row and 15 fields. Notable fields are:
+#' \describe{
+#' \item{STATIONID}{Station ID of the grid the station resides. This format of the station id is XX-YY where XX is the grid location on the W-E axis and YY is the grid location on the N-S axis.}
+#' \item{STRATUM}{Stratum ID. The 2023 restratification stratum id is formatted as the year the stratification was created (i.e., 2023), followed by "_" and then a three digit code in the format ABC similar to the format used in the historical GOA survey design. The second digit (B) refers to the managment area (1: Shumagin, 2: Chirikof, 3: Kodiak, 4: Yakutat, and 5: Southeastern). The first digit (A) denotes the relative depth of the stratum, 0 being the shallowest stratum and 5 being the deepest stratum. Because each management area has different depth strata, this digit is not comparable among management areas, just within a management area, e.g., 2023_010 is shallower than 2023_110. The third digit C is a replicate counter in case there are multiple strata within a management area x depth bin combination (there are no replicates in the 2023 GOA stratification, so this digit is always zero). This last digit is consistent with the historical GOA strata ids. }
+#' \item{AREA_KM2}{area of station in km^2}
+#' \item{TRAWLABLE_AREA_KM2}{trawlable area within station in km^2}
+#' \item{PERIMETER_KM}{perimeter of station in km}
+#' \item{CENTER_LAT, CENTER_LONG}{Latitude and longitude of station centroid}
+#' \item{vessel}{vessel name assigned to station}
+#' }
+#'
+#'@examples
+#'
+#' spp_list <- c("walleye pollock", "Pacific cod", "arrowtooth flounder",
+#' "flathead sole", "rex sole", "northern rock sole",
+#' "southern rock sole", "Dover sole", "Pacific halibut",
+#' "Pacific ocean perch", "BS and RE rockfishes",
+#' "silvergray rockfish", "dusky rockfish", "northern rockfish",
+#' "shortspine thornyhead")
+#'
+#' GOA_allocation_2023 <-
+#'   StationAllocationAIGOA::goa_allocate_stations(
+#'     species = spp_list,
+#'     n = 550,
+#'     min_n_per_stratum = 4,
+#'     year = 2023,
+#'     vessel_names = c("vessel_1",  "vessel_2"))
 #'
 
 goa_allocate_stations <-
@@ -40,10 +71,9 @@ goa_allocate_stations <-
            ),
            max_iter = 5000,
            year = 2023,
-           vessel_names = c("vessel_1", "vessel_2"),
-           output_dir = NULL)
+           vessel_names = c("vessel_1", "vessel_2"))
   {
-    # return(StationAllocationAIGOA::goa_grid_2023)
+
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     ##   Check that species list matches current species list
     ##   Check that year is an integer
@@ -54,12 +84,6 @@ goa_allocate_stations <-
                  "in the list of included species. See",
                  "?StationAllocationAIGOA::goa_allocate_stations",
                  "for full species list"))
-
-    if (!is.null(output_dir))
-      if (!dir.exists(output_dir))
-        stop(paste("message from StationAllocationAIGOA::goa_allocate_stations:",
-                   "directory path `output_dir` does not exist, please provide",
-                   "a path for output products"))
 
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     ##   Constants
@@ -116,7 +140,9 @@ goa_allocate_stations <-
 
     message("")
 
-    for (ispp in 1:ns_opt) {
+    for (ispp in 1:ns_opt) { ## Loop over species -- start
+
+      ## Set up bethel algorithm @ cv under srs
       error_df <- data.frame("DOM" = "DOM1",
                              "CV1" = as.numeric(srs_cv[ispp]),
                              "domainvalue"  = 1)
@@ -126,6 +152,7 @@ goa_allocate_stations <-
                                            paste0(c("M", "S"), ispp)) ])
       names(temp_stratif)[-c(1:4)] <- paste0(c("M", "S"), 1)
 
+      # Run initial allocation and record the total effort and cv
       temp_bethel <- SamplingStrata::bethel(
         errors = error_df,
         stratif = temp_stratif,
@@ -135,6 +162,7 @@ goa_allocate_stations <-
       temp_n <- as.integer(sum(temp_bethel))
       temp_cv <- as.numeric(attributes(temp_bethel)$outcv[, "PLANNED CV "])
 
+      ## iteratively adjust temp_cv and rerun bethel until the total effort = n
       iter = 1
       while (temp_n != n & iter != max_iter){
         over_under <- temp_n > n
@@ -154,11 +182,12 @@ goa_allocate_stations <-
         iter = 1 + iter
       }
 
+      ## record cv and station allocation
       ss_cv <- rbind(ss_cv, data.frame(species = species[ispp],
                                        ss_cv = temp_cv))
       ss_allocations[, ispp] <- temp_bethel
       message(paste0("Incorporating ", species[ispp]) )
-    }
+    } ## Loop over species -- start
 
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     ##   multi species CV:
@@ -168,6 +197,7 @@ goa_allocate_stations <-
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     message("Now running multispecies allocation" )
 
+    ## set up bethel algorithm @ cv under srs
     error_df <- cbind("DOM" = "DOM1",
                       srs_cv,
                       "domainvalue"  = 1)
@@ -179,6 +209,7 @@ goa_allocate_stations <-
                                          paste0("M", 1:ns_opt),
                                          paste0("S", 1:ns_opt)) ])
 
+    ## Run initial allocation and record the total effort and cv
     temp_bethel <- SamplingStrata::bethel(
       errors = error_df,
       stratif = temp_stratif,
@@ -187,6 +218,8 @@ goa_allocate_stations <-
       minnumstrat = min_n_per_stratum)
     temp_n <- sum(ceiling(temp_bethel))
 
+    ## iteratively adjust temp_cv and rerun bethel until the total effort = n
+    ## Use the single-species cvs as a lower bound when adjusting temp_cv
     iter = 1
     while (temp_n != n & iter != max_iter){
       over_under <- temp_n > n
@@ -209,91 +242,42 @@ goa_allocate_stations <-
       iter <- iter + 1
     }
 
-    ## Multispcies allocation and cvs
+    ## Record Multispcies allocation and cvs
     ms_cv <- as.numeric(updated_cv_constraint)
     ms_allocation <- as.integer(ceiling(temp_bethel))
     names(ms_allocation) <-
       levels(factor(StationAllocationAIGOA::frame$stratum))
 
-    # ## Randomly drawn stations
+    ## Randomly drawn stations
     drawn_stations <- c()
 
-    for (i in 1:length(ms_allocation)) {
+    for (i in 1:length(ms_allocation)) { ## Loop over strata -- start
+
+      #Set seed
       set.seed(year)
       istratum <- names(ms_allocation)[i]
+
+      ## available stations are those that are trawlable and > 5 km^2
       available_stations <- with(stations_2023,
-                                 which(STRATUM == istratum & TRAWLABLE == T))
+                                 which(STRATUM == istratum &
+                                         TRAWLABLE == T &
+                                         AREA_KM2 >= 5.00))
       temp_samples <- sample(x = available_stations,
                              size = ms_allocation[i],
                              prob = stations_2023$AREA_KM2[available_stations],
                              replace = FALSE)
       drawn_stations <- c(drawn_stations, temp_samples)
-    }
+    } ## Loop over strata -- end
 
     drawn_stations <- stations_2023[drawn_stations, ]
     drawn_stations$vessel <- vessel_names
 
     ## Expected CVs
-    expected_cvs <- cbind( t(srs_cv), ss_cv$ss_cv, ms_cv )
-    dimnames(expected_cvs) <- list(species, c("srs_cv", "ss_cv", "ms_cv"))
+    # expected_cvs <- cbind( t(srs_cv), ss_cv$ss_cv, ms_cv )
+    # dimnames(expected_cvs) <- list(species, c("srs_cv", "ss_cv", "ms_cv"))
 
-
-    # if (!is.null(output_dir)) {
-    #   pdf(file = paste0(output_dir, "/goa_station_allocation_", year, ".pdf"),
-    #       width = 10, height = 7, onefile = TRUE)
-    #
-    #   for (iarea in c("Shumagin", "Chirikof", "Kodiak", "Yakutat", "Southeast")) {
-    #
-    #     temp_strata <-
-    #       sort(unique(grid_goa_sp@data$STRATUM[grid_goa_sp$MGT_AREA == iarea]))
-    #
-    #     par(mfrow = switch(paste(length(temp_strata)),
-    #                        "5" = c(2, 3),
-    #                        "4" =  c(2, 2)),
-    #         mar = c(0,0,0,0))
-    #
-    #     for (istratum in temp_strata) {
-    #       plot(subset(strata_list, MGT_AREA == iarea), border = F)
-    #       plot(ak_land, col = "tan", add = T, border = "tan")
-    #       plot(subset(x = strata_list, subset = STRATUM == istratum), add = TRUE,
-    #            col = "red", border = F)
-    #       plot(subset(x = stations, subset = STRATUM == istratum & TRAWL == F),
-    #            add = TRUE, col = "grey", border = "grey")
-    #
-    #       for (ivessel in 1:length(vessel_names)) {
-    #         plot(subset(x = drawn_stations,
-    #                     subset = STRATUM == istratum &
-    #                       vessel == vessel_names[ivessel]),
-    #              col = c("black", "blue")[ivessel],
-    #              border = c("black", "blue")[ivessel],
-    #              add = TRUE)
-    #       }
-    #
-    #       vessel_n <-
-    #         table(drawn_stations$vessel[drawn_stations$STRATUM == istratum])
-    #
-    #       box()
-    #       stratum_description <-
-    #         with(subset(depth_mods, stratum == istratum),
-    #              paste0(lower_depth_m, " - ", upper_depth_m, " m"))
-    #
-    #       legend(switch(iarea,
-    #                     "Southeast" = "bottomleft",
-    #                     "Yakutat" = "bottom",
-    #                     "Kodiak" = "right",
-    #                     "Chirikof" = "bottomright",
-    #                     "Shumagin"= "bottom"),
-    #              legend = paste0(vessel_names, ": ", vessel_n, " stations"),
-    #              fill = c("black", "blue"),
-    #              title = paste0(istratum, ": ", stratum_description))
-    #     }
-    #
-    #   }
-    #   dev.off()
-    # }
-
-    return(list(ss_allocations = ss_allocations,
+    return(list(#ss_allocations = ss_allocations,
                 ms_allocation = ms_allocation,
-                expected_cvs = as.data.frame(expected_cvs),
+                #expected_cvs = as.data.frame(expected_cvs),
                 drawn_stations = drawn_stations))
   }
