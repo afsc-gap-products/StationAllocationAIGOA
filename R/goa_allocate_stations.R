@@ -80,7 +80,7 @@ goa_allocate_stations <-
                                         "stratum",
                                         paste0("Y", spp_idx),
                                         paste0("Y", spp_idx, "_SQ_SUM") )]
-    names(frame_subdf)[-1:-3] <- c(paste0("Y", 1:ns_opt),
+    names(frame_subdf)[-1:-4] <- c(paste0("Y", 1:ns_opt),
                                    paste0("Y", 1:ns_opt, "_SQ_SUM"))
 
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
