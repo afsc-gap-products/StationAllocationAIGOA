@@ -160,83 +160,84 @@ goa_allocate_stations <-
       message(paste0("Incorporating ", species[ispp]) )
     }
 
-    # ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # ##   multi species CV:
-    # ##   Start at SRS CV --> bethel algorithm --> optimal sampling size (n_srs)
-    # ##   If n_srs < n stations, reduce CV constraints across species by 0.1%
-    # ##   using the CVs optimized for each species (ss_cv) as a lower bound.
-    # ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # message("Now running multispecies allocation" )
-    #
-    # error_df <- cbind("DOM" = "DOM1",
-    #                   srs_cv,
-    #                   "domainvalue"  = 1)
-    # names(error_df)[2:(1 + ns_opt)] <- paste0("CV", 1:ns_opt)
-    #
-    # temp_stratif <- cbind(DOM1 = 1,
-    #                       CENS = 0,
-    #                       strs_stats[, c(names(strs_stats)[1:2],
-    #                                      paste0("M", 1:ns_opt),
-    #                                      paste0("S", 1:ns_opt)) ])
-    #
-    # temp_bethel <- SamplingStrata::bethel(
-    #   errors = error_df,
-    #   stratif = temp_stratif,
-    #   realAllocation = T,
-    #   printa = T,
-    #   minnumstrat = min_n_per_stratum)
-    # temp_n <- sum(ceiling(temp_bethel))
-    #
-    # iter = 1
-    # while (temp_n != n & iter != max_iter){
-    #   over_under <- temp_n > n
-    #   CV_adj <- ifelse(over_under == TRUE,
-    #                    yes = 1.001,
-    #                    no = 0.999)
-    #
-    #   updated_cv_constraint <-
-    #     as.numeric(attributes(temp_bethel)$outcv[, "PLANNED CV "]) * (CV_adj) +
-    #     ss_cv$ss_cv * (1  - CV_adj)
-    #
-    #   error_df[, paste0("CV", 1:ns_opt)] <- as.numeric(updated_cv_constraint)
-    #
-    #   temp_bethel <- SamplingStrata::bethel(stratif = temp_stratif,
-    #                                         errors = error_df,
-    #                                         printa = TRUE,
-    #                                         minnumstrat = min_n_per_stratum)
-    #
-    #   temp_n <- sum(as.numeric(temp_bethel))
-    #   iter <- iter + 1
-    # }
-    #
-    # ## Multispcies allocation and cvs
-    # ms_cv <- as.numeric(updated_cv_constraint)
-    # ms_allocation <- as.integer(ceiling(temp_bethel))
-    # names(ms_allocation) <- levels(factor(grid_goa_sp@data$STRATUM))
-    #
-    # # ## Randomly drawn stations
-    # drawn_stations <- c()
-    #
-    # for (i in 1:length(ms_allocation)) {
-    #   set.seed(year)
-    #   istratum <- names(ms_allocation)[i]
-    #   available_stations <- with(stations@data,
-    #                              which(STRATUM == istratum & TRAWL == T))
-    #   temp_samples <- sample(x = available_stations,
-    #                          size = ms_allocation[i],
-    #                          prob = stations$AREA_KM2[available_stations],
-    #                          replace = FALSE)
-    #   drawn_stations <- c(drawn_stations, temp_samples)
-    # }
-    #
-    # drawn_stations <- stations[drawn_stations, ]
-    # drawn_stations$vessel <- vessel_names
-    #
-    # ## Expected CVs
-    # expected_cvs <- cbind( t(srs_cv), ss_cv$ss_cv, ms_cv )
-    # dimnames(expected_cvs) <- list(species, c("srs_cv", "ss_cv", "ms_cv"))
-    #
-    #
+    ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    ##   multi species CV:
+    ##   Start at SRS CV --> bethel algorithm --> optimal sampling size (n_srs)
+    ##   If n_srs < n stations, reduce CV constraints across species by 0.1%
+    ##   using the CVs optimized for each species (ss_cv) as a lower bound.
+    ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    message("Now running multispecies allocation" )
+
+    error_df <- cbind("DOM" = "DOM1",
+                      srs_cv,
+                      "domainvalue"  = 1)
+    names(error_df)[2:(1 + ns_opt)] <- paste0("CV", 1:ns_opt)
+
+    temp_stratif <- cbind(DOM1 = 1,
+                          CENS = 0,
+                          strs_stats[, c(names(strs_stats)[1:2],
+                                         paste0("M", 1:ns_opt),
+                                         paste0("S", 1:ns_opt)) ])
+
+    temp_bethel <- SamplingStrata::bethel(
+      errors = error_df,
+      stratif = temp_stratif,
+      realAllocation = T,
+      printa = T,
+      minnumstrat = min_n_per_stratum)
+    temp_n <- sum(ceiling(temp_bethel))
+
+    iter = 1
+    while (temp_n != n & iter != max_iter){
+      over_under <- temp_n > n
+      CV_adj <- ifelse(over_under == TRUE,
+                       yes = 1.001,
+                       no = 0.999)
+
+      updated_cv_constraint <-
+        as.numeric(attributes(temp_bethel)$outcv[, "PLANNED CV "]) * (CV_adj) +
+        ss_cv$ss_cv * (1  - CV_adj)
+
+      error_df[, paste0("CV", 1:ns_opt)] <- as.numeric(updated_cv_constraint)
+
+      temp_bethel <- SamplingStrata::bethel(stratif = temp_stratif,
+                                            errors = error_df,
+                                            printa = TRUE,
+                                            minnumstrat = min_n_per_stratum)
+
+      temp_n <- sum(as.numeric(temp_bethel))
+      iter <- iter + 1
+    }
+
+    ## Multispcies allocation and cvs
+    ms_cv <- as.numeric(updated_cv_constraint)
+    ms_allocation <- as.integer(ceiling(temp_bethel))
+    names(ms_allocation) <-
+      levels(factor(StationAllocationAIGOA::frame$stratum))
+
+    # ## Randomly drawn stations
+    drawn_stations <- c()
+
+    for (i in 1:length(ms_allocation)) {
+      set.seed(year)
+      istratum <- names(ms_allocation)[i]
+      available_stations <- with(stations_2023,
+                                 which(STRATUM == istratum & TRAWLABLE == T))
+      temp_samples <- sample(x = available_stations,
+                             size = ms_allocation[i],
+                             prob = stations_2023$AREA_KM2[available_stations],
+                             replace = FALSE)
+      drawn_stations <- c(drawn_stations, temp_samples)
+    }
+
+    drawn_stations <- stations_2023[drawn_stations, ]
+    drawn_stations$vessel <- vessel_names
+
+    ## Expected CVs
+    expected_cvs <- cbind( t(srs_cv), ss_cv$ss_cv, ms_cv )
+    dimnames(expected_cvs) <- list(species, c("srs_cv", "ss_cv", "ms_cv"))
+
+
     # if (!is.null(output_dir)) {
     #   pdf(file = paste0(output_dir, "/goa_station_allocation_", year, ".pdf"),
     #       width = 10, height = 7, onefile = TRUE)
@@ -290,9 +291,9 @@ goa_allocate_stations <-
     #   }
     #   dev.off()
     # }
-    #
-    # return(list(ss_allocations = ss_allocations,
-    #             ms_allocation = ms_allocation,
-    #             expected_cvs = as.data.frame(expected_cvs),
-    #             drawn_stations = drawn_stations))
+
+    return(list(ss_allocations = ss_allocations,
+                ms_allocation = ms_allocation,
+                expected_cvs = as.data.frame(expected_cvs),
+                drawn_stations = drawn_stations))
   }
