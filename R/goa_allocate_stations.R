@@ -77,6 +77,7 @@ goa_allocate_stations <-
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     frame_subdf <-
       StationAllocationAIGOA::frame[, c('domainvalue', "id", "WEIGHT",
+                                        "stratum",
                                         paste0("Y", spp_idx),
                                         paste0("Y", spp_idx, "_SQ_SUM") )]
     names(frame_subdf)[-1:-3] <- c(paste0("Y", 1:ns_opt),
