@@ -69,6 +69,7 @@ grid_goa_sp <-
   terra::intersect(x = grid_goa_sp,
                    y = nmfs)
 grid_goa_sp <- grid_goa_sp[!is.na(grid_goa_sp$area_name),]
+grid_goa_sp <- grid_goa_sp[grid_goa_sp$DEPTH_EFH <= 700, ]
 
 removed_cells <- (1:n_cells)[-grid_goa_sp$ID]
 D_gct <- D_gct[-removed_cells, , ]
@@ -106,7 +107,7 @@ spp_list <- c("walleye pollock", "Pacific cod", "arrowtooth flounder",
               "silvergray rockfish", "dusky rockfish", "northern rockfish",
               "shortspine thornyhead")
 
-for (which_species in spp_list) { ## Start loop over species
+for (which_species in spp_list[7:8]) { ## Start loop over species
 
   ## Which density values are we using?
   density_input <- D_gct[, which_species, ]
@@ -180,7 +181,7 @@ for (which_species in spp_list) { ## Start loop over species
   solution <- optimStrata(method = "continuous",
                           errors = cv,
                           framesamp = frame,
-                          iter = 300,
+                          iter = 200,
                           pops = 100,
                           elitism_rate = 0.1,
                           mut_chance = 1 / (no_strata[1] + 1),
@@ -287,7 +288,7 @@ for (which_species in spp_list) { ## Start loop over species
                       cvs = cv_by_boat,
                       sample_allocations = sample_allocations,
                       sol_by_cell = plot_solution)
-  save(list = "result_list", file = "result_list.RDS")
+  saveRDS(obj = result_list, file = "result_list.RDS")
 
 } ## End loop over species
 
