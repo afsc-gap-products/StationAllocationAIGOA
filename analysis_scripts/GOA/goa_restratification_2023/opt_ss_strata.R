@@ -33,7 +33,8 @@ source("analysis_scripts/GOA/goa_restratification_2023/plot_solution_results.R")
 ##   Load the true density, true index, and spatial domain dataset
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 grid_goa <- read.csv(file = "data/GOA/vast_grid_goa.csv")
-D_gct <- readRDS("data/GOA/VAST_fit_D_gct.RDS")
+load("data/D_gct.rda")
+load("data/optim_df.rda")
 
 updated_goa_strata <-
   terra::vect(x = "data/GOA/processed_shapefiles/goa_strata_2023.shp")
@@ -56,25 +57,6 @@ n_years <- dim(D_gct)[3]
 n_spp <- dim(D_gct)[2]
 n_cells <- dim(D_gct)[1]
 
-##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-##   Assign grid points to the new strata
-##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-grid_goa_sp <- terra::vect(x = cbind(ID = 1:nrow(grid_goa), grid_goa),
-                           geom = c("Lon", "Lat"),
-                           crs = lonlat_crs)
-grid_goa_sp <- terra::project(x = grid_goa_sp,
-                              y = updated_goa_strata)
-
-grid_goa_sp <-
-  terra::intersect(x = grid_goa_sp,
-                   y = nmfs)
-grid_goa_sp <- grid_goa_sp[!is.na(grid_goa_sp$area_name),]
-grid_goa_sp <- grid_goa_sp[grid_goa_sp$DEPTH_EFH <= 700, ]
-
-removed_cells <- (1:n_cells)[-grid_goa_sp$ID]
-D_gct <- D_gct[-removed_cells, , ]
-n_cells <- dim(D_gct)[1]
-
 ##################################################
 ####   Constants to specify before doing optimization
 ##################################################
@@ -84,16 +66,15 @@ n_cells <- dim(D_gct)[1]
 n_dom <- 5
 
 ## depth input
-depth_input <- grid_goa$DEPTH_EFH[-removed_cells]
+# depth_input <- grid_goa$DEPTH_EFH[-removed_cells]
+depth_input <- optim_df$DEPTH_EFH
 
 ## For the gulf-wide optimization, use 10 strata
 ## For the district-level optimization, use 5 strata per district
 no_strata <-  rep(5, n_dom)
 
-depth_input <- grid_goa$DEPTH_EFH[-removed_cells]
-
 domain_input <-
-  as.integer(factor(x = grid_goa_sp$area_name,
+  as.integer(factor(x = optim_df$INPFC_AREA,
                     levels = c("Shumagin", "Chirikof", "Kodiak",
                                "Yakutat", "Southeastern")))
 
@@ -107,7 +88,7 @@ spp_list <- c("walleye pollock", "Pacific cod", "arrowtooth flounder",
               "silvergray rockfish", "dusky rockfish", "northern rockfish",
               "shortspine thornyhead")
 
-for (which_species in spp_list[7:8]) { ## Start loop over species
+for (which_species in spp_list) { ## Start loop over species
 
   ## Which density values are we using?
   density_input <- D_gct[, which_species, ]
@@ -214,15 +195,6 @@ for (which_species in spp_list[7:8]) { ## Start loop over species
   plot_solution <- as.integer(plot_solution)
 
   ##################################################
-  ####   Save a plot of the solution
-  ##################################################
-  plot_solution_results(file_name = "solution.pdf",
-                        grid_object =  grid_goa_sp,
-                        districts_object = nmfs,
-                        sol_by_cell = plot_solution,
-                        strata_bounds = sum_stats)
-
-  ##################################################
   ####   Tune CV to hit 550 stations
   ##################################################
   temp_frame <- frame
@@ -273,12 +245,21 @@ for (which_species in spp_list[7:8]) { ## Start loop over species
   ##################################################
   ####   Update sample_allocations with optimal allocation
   ##################################################
-  sample_allocations <- as.numeric(temp_bethel)
+  sample_allocations <- sum_stats$Allocation <- as.numeric(temp_bethel)
 
   cv_by_boat <- with(attributes(temp_bethel),
                      c("cv_constraint" = as.numeric(outcv[, "PLANNED CV "]),
                        "actual_cv" = as.numeric(outcv[, "ACTUAL CV"]),
                        "total_n" = temp_n))
+
+  ##################################################
+  ####   Save a plot of the solution
+  ##################################################
+  plot_solution_results(file_name = "solution.pdf",
+                        grid_object =  optim_df,
+                        districts_object = nmfs,
+                        sol_by_cell = plot_solution,
+                        strata_bounds = sum_stats)
 
   ##################################################
   ####   Save output
