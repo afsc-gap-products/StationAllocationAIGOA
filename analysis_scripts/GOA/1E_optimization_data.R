@@ -51,10 +51,9 @@ grid_goa_sp <- terra::project(x = grid_goa_sp,
 
 grid_goa_sp <-
   terra::intersect(x = grid_goa_sp,
-                   y = updated_goa_strata[, c("STRATUM")])
+                   y = updated_goa_strata[, c("INPFC_AREA", "STRATUM")])
 grid_goa_sp <- grid_goa_sp[grid_goa_sp$STRATUM %in%
                              depth_mods$stratum[depth_mods$used], ]
-
 
 ## remove duplicates
 rm_idx <- c()
@@ -68,6 +67,10 @@ grid_goa_sp <- grid_goa_sp[-rm_idx, ]
 removed_cells <- (1:n_cells)[-grid_goa_sp$ID]
 D_gct <- D_gct[-c(removed_cells), , ]
 n_cells <- dim(D_gct)[1]
+
+optim_df <- cbind(as.data.frame(grid_goa_sp),
+                  terra::geom(grid_goa_sp)[, c("x", "y")])
+attributes(optim_df)$crs <- terra::crs(grid_goa_sp)
 
 ##################################################
 ####   Our df will have fields for:
@@ -109,7 +112,11 @@ frame <- cbind(
 
 attributes(frame)$spp_name <- dimnames(D_gct)[[2]]
 
+
+
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Save Data
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+usethis::use_data(D_gct, overwrite = TRUE)
+usethis::use_data(optim_df, overwrite = TRUE)
 usethis::use_data(frame, overwrite = TRUE)
