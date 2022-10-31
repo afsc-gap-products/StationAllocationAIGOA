@@ -63,7 +63,7 @@ for (ispp in spp_names){ ## Loop through species -- start
       }  ## Loop through depth models -- start
     } ## Loop through cv folds -- end
   }
-
+ print(paste("Done with", ispp))
 } ## Loop through species --end
 
 ##################################################
@@ -89,13 +89,16 @@ pred_jnll <-
 ##################################################
 fit <- readRDS(paste0(VAST_dir, "arrowtooth flounder/fit.RDS"))
 year_idx <- 1 + as.integer(names(table(fit$data_list$t_i)))
+years <- (1996:2021)[year_idx]
 n_years <- length(year_idx)
 n_cells <- dim(fit$Report$D_gct)[1]
 n_spp <- nrow(pred_jnll)
 spp_names <- pred_jnll$spp_name
 
 D_gct <- array(dim = c(n_cells, n_spp, n_years),
-                        dimnames = list(NULL, spp_names, NULL))
+                        dimnames = list(NULL,
+                                        spp_names,
+                                        paste0("year_", years)))
 
 for(irow in 1:nrow(pred_jnll)) { ## Loop over species -- start
 
