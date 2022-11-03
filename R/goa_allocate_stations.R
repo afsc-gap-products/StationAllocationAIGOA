@@ -16,7 +16,7 @@
 #'                 to converge to `n`.
 #' @param year integer. The year as an integer is used as a seed for the random
 #'             number generator when drawing random stations.
-#' @param vesssel_names character vector.
+#' @param vessel_names character vector.
 #'
 #' @return A named list with elements:
 #' 1) ms_allocation: vector, allocation of `n` stations across strata using
