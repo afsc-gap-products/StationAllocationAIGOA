@@ -112,11 +112,9 @@ frame <- cbind(
 
 attributes(frame)$spp_name <- dimnames(D_gct)[[2]]
 
-
-
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Save Data
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 usethis::use_data(D_gct, overwrite = TRUE)
 usethis::use_data(optim_df, overwrite = TRUE)
-usethis::use_data(frame, overwrite = TRUE)
+# usethis::use_data(frame, overwrite = TRUE)

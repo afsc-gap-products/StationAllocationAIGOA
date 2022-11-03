@@ -66,11 +66,11 @@ goa_grid_2021 <- readRDS(file = "data/GOA/grid_goa_2021.rds")
 goa_grid_2021 <- goa_grid_2021[order(goa_grid_2021$GOAGRID_ID), ]
 goa_strata_2021 <- readRDS(file = "data/GOA/grid_strata_2021.rds")
 
-ak_land <- terra::vect(x = "G:/AI-GOA/shapefiles/AKland.shp")
+ak_land <- terra::vect(x = "data/GOA/shapefiles_from_GDrive/AKland.shp")
 ak_land <- terra::project(x = ak_land, y = bathy)
 ak_land <- terra::aggregate(x = ak_land)
 
-ca_land <- terra::vect(x = "G:/AI-GOA/shapefiles/canada_dcw.shp")
+ca_land <- terra::vect(x = "data/GOA/shapefiles_from_GDrive/canada_dcw.shp")
 ca_land <- ca_land[ca_land$POPYADMIN %in% c("BRITISH COLUMBIA",
                                             "YUKON TERRITORY",
                                             "NORTHWEST TERRITORIES") ]
@@ -210,11 +210,11 @@ goagrid_ids <-
   (max(goa_grid_2021$GOAGRID_ID) + 1):
   (max(goa_grid_2021$GOAGRID_ID) + nrow(stations))
 
-goa_grid_2023 <- data.frame("GOAGRID#" = goagrid_ids + 1,
+stations_2023 <- data.frame("GOAGRID#" = goagrid_ids + 1,
                             "GOAGRID_ID" = goagrid_ids,
                             "TRAWLABLE" = stations$trawlable,
                             "TRAWLABLE_AREA_KM2" = stations$trawl_area_km2,
-                            "AREA_KM2" = stations$AREA_KM2,
+                            "AREA_KM2" = round(stations$AREA_KM2, 6),
                             "PERIMETER_KM" = stations$PER_KM,
                             "STRATUM" = stations$stratum,
                             "STATIONID" = stations$ID,
@@ -222,12 +222,12 @@ goa_grid_2023 <- data.frame("GOAGRID#" = goagrid_ids + 1,
                             "CENTER_LONG" = stations$Lon,
                             check.names = FALSE)
 
-goa_grid_2023[, c("NORTH_LAT", "SOUTH_LAT", "EAST_LONG", "WEST_LONG")] <-
-  goa_grid_2021[match(goa_grid_2023$STATIONID, goa_grid_2021$STATIONID),
+stations_2023[, c("NORTH_LAT", "SOUTH_LAT", "EAST_LONG", "WEST_LONG")] <-
+  goa_grid_2021[match(stations_2023$STATIONID, goa_grid_2021$STATIONID),
                 c("NORTH_LAT", "SOUTH_LAT", "EAST_LONG", "WEST_LONG")]
 
-stations[, names(goa_grid_2023)] <- goa_grid_2023
-stations[, !names(stations) %in% names(goa_grid_2023)] <- NULL
+stations[, names(stations_2023)] <- stations_2023
+stations[, !names(stations) %in% names(stations_2023)] <- NULL
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Which parts of the goa grid are not supported by the bathymetry raster
@@ -280,11 +280,14 @@ terra::writeVector(x = stations,
                                      "goa_stations_2023.shp"),
                    overwrite = TRUE)
 
-usethis::use_data(name = stations, overwrite = TRUE)
-usethis::use_data(name = strata_list, overwrite = TRUE)
-usethis::use_data(name = ak_land, overwrite = TRUE)
-usethis::use_data(name = ca_land, overwrite = TRUE)
-usethis::use_data(name = depth_mods, overwrite = TRUE)
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##   Save internally
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+usethis::use_data(stations_2023, overwrite = TRUE, internal = F)
+aea_crs <- terra::crs(bathy)
+usethis::use_data(aea_crs, overwrite = TRUE)
+depth_mods_2023 <- depth_mods
+usethis::use_data(depth_mods_2023, overwrite = TRUE)
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Plots
