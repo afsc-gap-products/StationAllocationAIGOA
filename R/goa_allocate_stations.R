@@ -9,13 +9,15 @@
 #' @author Zack Oyafuso \email{zack.oyafuso@@noaa.gov}
 #'
 #' @param n integer.Total number of stations
-#' @param species character vector. See details for full list of species
+#' @param species character vector. See example on github readme
 #' @param min_n_per_stratum integer. Minimum number of stations to assign a
 #'                          stratum
 #' @param max_iter integer. Maximum number of times for bethel algorithm to run
 #'                 to converge to `n`.
 #' @param year integer. The year as an integer is used as a seed for the random
 #'             number generator when drawing random stations.
+#' @param trawl character vector. Options are "Y" for trawlable, "N" for
+#'              untrawlable, or "UNK" for unknown trawlablity.
 #'
 #' @return A named list with elements:
 #' 1) ms_allocation: vector, allocation of `n` stations across strata using
@@ -51,6 +53,7 @@ goa_allocate_stations <-
                        "shortspine thornyhead" ## Sebastolobus alascanus)
            ),
            max_iter = 5000,
+           trawl = c("Y", "N", "UNK")[c(1, 3)],
            year = 2025){
 
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -77,6 +80,9 @@ goa_allocate_stations <-
                          stratum[used])
     NMFS_area <- with(StationAllocationAIGOA::depth_mods_2023,
                       manage_area[used])
+
+    goa_stations_2025 <- StationAllocationAIGOA::goa_stations_2025
+
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     ##   Single species CV: lower CV bounds for MS allocation
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -100,20 +106,19 @@ goa_allocate_stations <-
                      FUN = function(x)
                        sapply(X = split(x = x,
                                         f = optim_df$STRATUM),
-                              FUN = function(xx) sd(as.vector(xx))))
+                              FUN = function(xx) sd(as.vector(xx))))[strata_names,]
     strs_mean <- apply(X = dens[, spp_idx, ],
                        MARGIN = 2,
                        FUN = function(x)
                          sapply(X = split(x = x,
                                           f = optim_df$STRATUM),
-                                FUN = function(xx) mean(as.vector(xx))))
+                                FUN = function(xx) mean(as.vector(xx))))[strata_names,]
 
     strs_stats <- cbind(data.frame(
       STRATO = 1:length(strata_names),
-      N = as.numeric(table(optim_df$STRATUM)),
+      N = as.numeric(table(optim_df$STRATUM)[strata_names]),
       COST = 1, CENS = 0, DOM1 = 1,
-      X1 = 1:length(strata_names)#,
-      # row.names = strata_names
+      X1 = 1:length(strata_names)
     ),
     matrix(data = as.vector(strs_mean), ncol = ns_opt,
            dimnames = list(NULL, paste0("M", 1:ns_opt))),
@@ -262,24 +267,22 @@ goa_allocate_stations <-
       istratum <- names(ms_allocation)[i]
 
       ## available stations are those that are trawlable and > 5 km^2
-      available_stations <- with(stations_2023,
+      available_stations <- with(goa_stations_2025,
                                  which(STRATUM == istratum &
-                                         TRAWLABLE != "N" &
-                                         AREA_KM2 >= 5.00 |
-                                         TRAWLABLE == "N" &
-                                         TRAWLABLE_AREA_KM2 >= 5.00))
+                                         TRAWLABLE %in% trawl &
+                                         AREA_KM2 >= 5.00))
       temp_samples <- sample(x = available_stations,
                              size = ms_allocation[i],
-                             prob = stations_2023$AREA_KM2[available_stations],
+                             prob = goa_stations_2025$AREA_KM2[available_stations],
                              replace = FALSE)
       drawn_stations <- c(drawn_stations, temp_samples)
     } ## Loop over strata -- end
 
-    drawn_stations <- stations_2023[drawn_stations, ]
-    drawn_stations$vessel <- vessel_names
+    drawn_stations <- goa_stations_2025[drawn_stations, ]
 
     return(list(ms_allocation = data.frame(stratum = strata_names,
                                            nmfs_area = NMFS_area,
-                                           ms_allocation = ms_allocation),
-                drawn_stations = drawn_stations))
-  }
+                                           ms_allocation = ms_allocation,
+                                           row.names = NULL),
+                drawn_stations = data.frame(drawn_stations, row.names = NULL)))
+    }

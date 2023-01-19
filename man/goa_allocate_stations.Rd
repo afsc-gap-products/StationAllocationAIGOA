@@ -12,6 +12,7 @@ goa_allocate_stations(
     "Pacific ocean perch", "silvergray rockfish", "northern rockfish", "dusky rockfish",
     "BS and RE rockfishes", "Dover sole", "shortspine thornyhead"),
   max_iter = 5000,
+  trawl = c("Y", "N", "UNK")[c(1, 3)],
   year = 2025
 )
 }
@@ -21,10 +22,13 @@ goa_allocate_stations(
 \item{min_n_per_stratum}{integer. Minimum number of stations to assign a
 stratum}
 
-\item{species}{character vector. See details for full list of species}
+\item{species}{character vector. See example on github readme}
 
 \item{max_iter}{integer. Maximum number of times for bethel algorithm to run
 to converge to `n`.}
+
+\item{trawl}{character vector. Options are "Y" for trawlable, "N" for
+untrawlable, or "UNK" for unknown trawlablity.}
 
 \item{year}{integer. The year as an integer is used as a seed for the random
 number generator when drawing random stations.}
