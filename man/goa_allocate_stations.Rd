@@ -12,8 +12,7 @@ goa_allocate_stations(
     "Pacific ocean perch", "silvergray rockfish", "northern rockfish", "dusky rockfish",
     "BS and RE rockfishes", "Dover sole", "shortspine thornyhead"),
   max_iter = 5000,
-  year = 2023,
-  vessel_names = c("vessel_1", "vessel_2")
+  year = 2025
 )
 }
 \arguments{
@@ -29,8 +28,6 @@ to converge to `n`.}
 
 \item{year}{integer. The year as an integer is used as a seed for the random
 number generator when drawing random stations.}
-
-\item{vessel_names}{character vector.}
 }
 \value{
 A named list with elements:
