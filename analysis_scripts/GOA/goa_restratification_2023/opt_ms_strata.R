@@ -6,18 +6,20 @@
 ###############################################################################
 rm(list = ls())
 
-##################################################
-####  Install a forked version of the SamplingStrata Package from
-####  zoyafuso-NOAA's Github page
-####
-####  Import other required packages
-##################################################
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##   Import Library
+##  Install a forked version of the SamplingStrata Package from
+##  zoyafuso-NOAA's Github page
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 library(devtools)
 devtools::install_github(repo = "zoyafuso-NOAA/SamplingStrata")
 library(SamplingStrata)
 library(terra)
-library(RColorBrewer)
 
+##################################################
+####   Set up directories based on whether the optimization is being conducted
+####        on a multi-species or single-species level
+##################################################
 github_dir <- "C:/Users/zack.oyafuso/Desktop/optim_res/"
 
 ##################################################
@@ -30,28 +32,34 @@ source("analysis_scripts/GOA/goa_restratification_2023/plot_solution_results.R")
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Load the true density, true index, and spatial domain dataset
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-grid_goa <- read.csv(file = "data/GOA/vast_grid_goa.csv")
-load("data/D_gct.rda")
-load("data/optim_df.rda")
-# D_gct <- readRDS("data/GOA/VAST_fit_D_gct.RDS")
+## crs used
+lonlat_crs <- "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
+utm_crs <- "+proj=utm +zone=5N +units=km"
 
-updated_goa_strata <-
-  terra::vect(x = "data/GOA/processed_shapefiles/goa_strata_2023.shp")
-depth_mods <- read.csv("data/GOA/strata_boundaries/depth_modifications_2023.csv")
+grid_goa <- read.csv(file = "data/GOA/vast_grid_goa.csv")
+D_gct <- readRDS("data/GOA/VAST_fit_D_gct.RDS")
 
 nmfs <- terra::vect(x = "data/GOA/shapefiles_from_GDrive/GOA_Shapes.shp")
-nmfs <- terra::project(x = nmfs, y = updated_goa_strata)
+# nmfs <- terra::project(x = nmfs, y = updated_goa_strata)
 nmfs$area_name <- c("Southeastern", "Southeastern", "Shumagin", "Chirikof",
                     "Kodiak", "Yakutat", NA)
 nmfs <- terra::aggregate(x = nmfs, by = "area_name")
 
+goa_grid_vect <- terra::vect(x = grid_goa,
+                             geom = c("Lon", "Lat"),
+                             crs = lonlat_crs)
+goa_grid_vect <- terra::project(x = goa_grid_vect, y = nmfs)
+goa_grid_vect$ID <- 1:nrow(goa_grid_vect)
+
+goa_grid_nmfs <- terra::intersect(x = goa_grid_vect, nmfs[, c("area_name")])
+goa_grid_nmfs <- goa_grid_nmfs[!is.na(goa_grid_nmfs$area_name) & goa_grid_nmfs$DEPTH_EFH <= 700]
+
+D_gct <- D_gct[goa_grid_nmfs$ID, , ]
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Constants used throughout all scripts
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-## crs used
-lonlat_crs <- "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
-utm_crs <- "+proj=utm +zone=5N +units=km"
+
 n_years <- dim(D_gct)[3]
 n_spp <- dim(D_gct)[2]
 n_cells <- dim(D_gct)[1]
@@ -85,14 +93,14 @@ n_dom <- 5
 
 ## depth input
 # depth_input <- grid_goa$DEPTH_EFH[-removed_cells]
-depth_input <- optim_df$DEPTH_EFH
+depth_input <- goa_grid_nmfs$DEPTH_EFH
 
 ## For the gulf-wide optimization, use 10 strata
 ## For the district-level optimization, use 5 strata per district
 no_strata <-  rep(5, n_dom)
 
 domain_input <-
-  as.integer(factor(x = optim_df$INPFC_AREA,
+  as.integer(factor(x = goa_grid_nmfs$area_name,
                     levels = c("Shumagin", "Chirikof", "Kodiak",
                                "Yakutat", "Southeastern")))
 
@@ -188,7 +196,7 @@ setwd(result_dir)
 solution <- optimStrata(method = "continuous",
                         errors = cv,
                         framesamp = frame,
-                        iter = 300,
+                        iter = 200,
                         pops = 100,
                         elitism_rate = 0.1,
                         mut_chance = 1 / (rep(5, n_dom) + 1),
@@ -295,7 +303,7 @@ cv_by_boat <-
 ####   Save a plot of the solution
 ##################################################
 plot_solution_results(file_name = "solution.pdf",
-                      grid_object =  optim_df,
+                      grid_object =  goa_grid_nmfs,
                       districts_object = nmfs,
                       sol_by_cell = plot_solution,
                       strata_bounds = sum_stats)
