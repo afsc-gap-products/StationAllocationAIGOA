@@ -21,19 +21,16 @@ plot_solution_results <- function (file_name,
   for (i in 1:5) {
     ireg <- c("Shumagin", "Chirikof", "Kodiak", "Yakutat", "Southeastern")[i]
 
-    grid_goa_sp <- terra::vect(x = grid_object[grid_object$INPFC_AREA == ireg, ],
-                               geom = c("x", "y"),
-                               crs = attributes(optim_df)$crs)
 
-    # tmp <- terra::mask(x = grid_goa_sp,
-    #                    mask = districts_object[districts_object$area_name == ireg])
-    grid_goa_sp$solution <- as.integer(as.factor(grid_goa_sp$solution))
+    tmp <- terra::mask(x = grid_object,
+                       mask = districts_object[districts_object$area_name == ireg])
+    tmp$solution <- as.integer(as.factor(tmp$solution))
 
     tmp_str_bound <- subset(strata_bounds, subset = Domain == i)
 
-    plot(grid_goa_sp,
-         col = RColorBrewer::brewer.pal(n = max(grid_goa_sp$solution),
-                                        name = "Spectral")[grid_goa_sp$solution],
+    plot(tmp,
+         col = RColorBrewer::brewer.pal(n = max(tmp$solution),
+                                        name = "Spectral")[tmp$solution],
          pch = ".",
          axes = F, main = ireg)
     legend(c("Shumagin" = "topleft", "Chirikof" = "topleft",
@@ -42,7 +39,7 @@ plot_solution_results <- function (file_name,
            legend = paste0(round(tmp_str_bound$Lower_X1), "-",
                            round(tmp_str_bound$Upper_X1), " m, n = ",
                            tmp_str_bound$Allocation),
-           fill = RColorBrewer::brewer.pal(n = max(grid_goa_sp$solution),
+           fill = RColorBrewer::brewer.pal(n = max(tmp$solution),
                                            name = "Spectral"),
            cex = 0.7)
   }
