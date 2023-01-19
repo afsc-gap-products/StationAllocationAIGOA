@@ -243,9 +243,6 @@ terra::writeVector(x = stations,
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Save internal variables ----
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# usethis::use_data(stations_2023, overwrite = TRUE, internal = F)
-aea_crs <- terra::crs(bathy)
-usethis::use_data(aea_crs, overwrite = TRUE)
 depth_mods_2023 <- depth_mods
 usethis::use_data(depth_mods_2023, overwrite = TRUE)
 
