@@ -30,7 +30,7 @@ to converge to `n`.}
 \item{year}{integer. The year as an integer is used as a seed for the random
 number generator when drawing random stations.}
 
-\item{vesssel_names}{character vector.}
+\item{vessel_names}{character vector.}
 }
 \value{
 A named list with elements:
@@ -39,12 +39,11 @@ A named list with elements:
 2) drawn_stations: dataframe with `n` row and 15 fields. Notable fields are:
 \describe{
 \item{STATIONID}{Station ID of the grid the station resides. This format of the station id is XX-YY where XX is the grid location on the W-E axis and YY is the grid location on the N-S axis.}
-\item{STRATUM}{Stratum ID. The 2023 restratification stratum id is formatted as the year the stratification was created (i.e., 2023), followed by "_" and then a three digit code in the format ABC similar to the format used in the historical GOA survey design. The second digit (B) refers to the managment area (1: Shumagin, 2: Chirikof, 3: Kodiak, 4: Yakutat, and 5: Southeastern). The first digit (A) denotes the relative depth of the stratum, 0 being the shallowest stratum and 5 being the deepest stratum. Because each management area has different depth strata, this digit is not comparable among management areas, just within a management area, e.g., 2023_010 is shallower than 2023_110. The third digit C is a replicate counter in case there are multiple strata within a management area x depth bin combination (there are no replicates in the 2023 GOA stratification, so this digit is always zero). This last digit is consistent with the historical GOA strata ids. }
+\item{STRATUM}{Stratum ID. The 2025 restratification stratum id is formatted as the year the stratification was created (i.e., 2025), followed by "_" and then a three digit code in the format ABC similar to the format used in the historical GOA survey design. The second digit (B) refers to the managment area (1: Shumagin, 2: Chirikof, 3: Kodiak, 4: Yakutat, and 5: Southeastern). The first digit (A) denotes the relative depth of the stratum, 0 being the shallowest stratum and 5 being the deepest stratum. Because each management area has different depth strata, this digit is not comparable among management areas, just within a management area, e.g., 2023_010 is shallower than 2023_110. The third digit C is a replicate counter in case there are multiple strata within a management area x depth bin combination (there are no replicates in the 2023 GOA stratification, so this digit is always zero). This last digit is consistent with the historical GOA strata ids. }
 \item{AREA_KM2}{area of station in km^2}
 \item{TRAWLABLE_AREA_KM2}{trawlable area within station in km^2}
 \item{PERIMETER_KM}{perimeter of station in km}
 \item{CENTER_LAT, CENTER_LONG}{Latitude and longitude of station centroid}
-\item{vessel}{vessel name assigned to station}
 }
 }
 \description{
@@ -52,24 +51,6 @@ Allocates stations under the Gulf of Alaska stratified random design, last
 restratified in 2023. Species information is incorporated from the survey
 years between 1996-2021. Bethel algorithm is used to conduct the multispecies
 station allocation.
-}
-\examples{
-
-spp_list <- c("walleye pollock", "Pacific cod", "arrowtooth flounder",
-"flathead sole", "rex sole", "northern rock sole",
-"southern rock sole", "Dover sole", "Pacific halibut",
-"Pacific ocean perch", "BS and RE rockfishes",
-"silvergray rockfish", "dusky rockfish", "northern rockfish",
-"shortspine thornyhead")
-
-GOA_allocation_2023 <-
-  StationAllocationAIGOA::goa_allocate_stations(
-    species = spp_list,
-    n = 550,
-    min_n_per_stratum = 4,
-    year = 2023,
-    vessel_names = c("vessel_1",  "vessel_2"))
-
 }
 \author{
 Zack Oyafuso \email{zack.oyafuso@noaa.gov}
