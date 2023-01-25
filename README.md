@@ -26,9 +26,7 @@ GOA_allocation_2025 <-
           n = 550, 
           min_n_per_stratum = 4, 
           year = 2025,
-          trawl = c("Y", "UNK", "N")[1:2], 
-          ## set a path location to save output
-          output_dir = NULL)
+          trawl = c("Y", "UNK", "N")[1:2])
 ```
 
 
