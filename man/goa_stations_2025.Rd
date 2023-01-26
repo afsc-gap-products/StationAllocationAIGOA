@@ -3,14 +3,8 @@
 \docType{data}
 \name{goa_stations_2025}
 \alias{goa_stations_2025}
-\title{Name_of_the_data2}
+\title{Name_of_the_data3}
 \format{
-A data frame with 10000 rows and 2 variables:
-\describe{
-  \item{Col1}{description of Col1}
-  \item{Col2}{description of Col2}
-}
-
 A data frame with 10000 rows and 2 variables:
 \describe{
   \item{Col1}{description of Col1}
@@ -19,12 +13,8 @@ A data frame with 10000 rows and 2 variables:
 }
 \usage{
 goa_stations_2025
-
-goa_stations_2025
 }
 \description{
-Description_of_the_Data
-
 Description_of_the_Data
 }
 \keyword{datasets}
