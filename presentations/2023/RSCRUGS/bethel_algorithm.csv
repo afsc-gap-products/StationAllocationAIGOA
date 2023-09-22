@@ -1,0 +1,31 @@
+species,sampling type,n,CV
+arrowtooth flounder,SRS,520,0.07286547
+Pacific cod,SRS,520,0.08881721
+walleye pollock,SRS,520,0.14807174
+Pacific ocean perch,SRS,520,0.28404794
+shortspine thornyhead,SRS,520,0.14732325
+arrowtooth flounder,single-species STRS,520,0.05646699
+Pacific cod,single-species STRS,520,0.06911845
+walleye pollock,single-species STRS,520,0.13175484
+Pacific ocean perch,single-species STRS,520,0.16749027
+shortspine thornyhead,single-species STRS,520,0.04135059
+arrowtooth flounder,multi-species STRS,422,0.07286547
+Pacific cod,multi-species STRS,422,0.08881721
+walleye pollock,multi-species STRS,422,0.14807174
+Pacific ocean perch,multi-species STRS,422,0.28404794
+shortspine thornyhead,multi-species STRS,422,0.14732325
+arrowtooth flounder,multi-species STRS,440,0.06990503
+Pacific cod,multi-species STRS,440,0.08514669
+walleye pollock,multi-species STRS,440,0.14512602
+Pacific ocean perch,multi-species STRS,440,0.26300558
+shortspine thornyhead,multi-species STRS,440,0.12812161
+arrowtooth flounder,multi-species STRS,479,0.06642064
+Pacific cod,multi-species STRS,479,0.08107532
+walleye pollock,multi-species STRS,479,0.14165897
+Pacific ocean perch,multi-species STRS,479,0.23823914
+shortspine thornyhead,multi-species STRS,479,0.1056745
+arrowtooth flounder,multi-species STRS,520,0.06429587
+Pacific cod,multi-species STRS,520,0.07852293
+walleye pollock,multi-species STRS,520,0.13954477
+Pacific ocean perch,multi-species STRS,520,0.22313662
+shortspine thornyhead,multi-species STRS,520,0.0919435
