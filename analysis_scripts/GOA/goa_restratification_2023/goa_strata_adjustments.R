@@ -24,7 +24,7 @@ library(RColorBrewer)
 ##   Import stratum depth boundaries ----
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 depth_mods <-
-  read.csv(file = "data/GOA/strata_boundaries/depth_modifications_2023.csv")
+  read.csv(file = "data/GOA/strata_boundaries/depth_modifications_2025.csv")
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Merge bathy rasters ----
@@ -173,7 +173,7 @@ goagrid_ids <-
   (max(goa_grid$GOAGRID_ID) + 1):
   (max(goa_grid$GOAGRID_ID) +  nrow(stations))
 
-stations_2023 <- data.frame("GOAGRID#" = goagrid_ids,
+stations_2025 <- data.frame("GOAGRID#" = goagrid_ids,
                             "GOAGRID_ID" = goagrid_ids,
                             "AREA_KM2" = round(stations$AREA_KM2, 6),
                             "PERIMETER_KM" = stations$PER_KM,
@@ -183,8 +183,8 @@ stations_2023 <- data.frame("GOAGRID#" = goagrid_ids,
                             "CENTER_LONG" = stations$Lon,
                             check.names = FALSE)
 
-stations[, names(stations_2023)] <- stations_2023
-stations[, !names(stations) %in% names(stations_2023)] <- NULL
+stations[, names(stations_2025)] <- stations_2025
+stations[, !names(stations) %in% names(stations_2025)] <- NULL
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Areas not defined by bathy ----
@@ -199,7 +199,7 @@ stations[, !names(stations) %in% names(stations_2023)] <- NULL
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Format strata ----
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-goa_strata_2023 <-
+goa_strata_2025 <-
   data.frame("SURVEY" = "GOA",
              "STRATUM" = strata_list$stratum,
              "AREA" = strata_list$AREA_KM2,
@@ -207,7 +207,9 @@ goa_strata_2023 <-
              "INPFC_AREA" = strata_list$manage_area,
              "MIN_DEPTH" = strata_list$lower_depth_m,
              "MAX_DEPTH" = strata_list$upper_depth_m,
-             "DESCRIPTION" = NA,
+             "DESCRIPTION" = with(as.data.frame(strata_list),
+                                  paste(manage_area, lower_depth_m, "m -",
+                                        upper_depth_m, "m")),
              "SUMMARY_AREA" = NA,
              "SUMMARY_DEPTH"= NA,
              "SUMMARY_AREA_DEPTH" = NA,
@@ -221,8 +223,8 @@ goa_strata_2023 <-
                                                "Southeastern" = "EASTERN GOA")),
              "STRATUM_TYPE" = NA)
 
-strata_list[, names(goa_strata_2023)] <- goa_strata_2023
-strata_list[, !names(strata_list) %in% names(goa_strata_2023)] <- NULL
+strata_list[, names(goa_strata_2025)] <- goa_strata_2025
+strata_list[, !names(strata_list) %in% names(goa_strata_2025)] <- NULL
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##  Save shapefiles ----
@@ -233,18 +235,12 @@ if(!dir.exists("data/GOA/processed_shapefiles/"))
 
 terra::writeVector(x = strata_list,
                    filename = paste0("data/GOA/processed_shapefiles/",
-                                     "goa_strata_2023.shp"),
+                                     "goa_strata_2025.shp"),
                    overwrite = TRUE)
 terra::writeVector(x = stations,
                    filename = paste0("data/GOA/processed_shapefiles/",
-                                     "goa_stations_2023.shp"),
+                                     "goa_stations_2025.shp"),
                    overwrite = TRUE)
-
-##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-##   Save internal variables ----
-##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-depth_mods_2023 <- depth_mods
-usethis::use_data(depth_mods_2023, overwrite = TRUE)
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Plot, finally ----

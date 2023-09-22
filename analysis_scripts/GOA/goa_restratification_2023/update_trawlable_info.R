@@ -91,10 +91,12 @@ overlap_with_trawl_polygon$DESIGN <- 2025
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Merge 1984 and 2025 station information. Add a time stamp. Save.
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+names(goa_grid_2021_shp)[names(goa_grid_2021_shp) == "ID"] <- "STATIONID"
+names(overlap_with_trawl_polygon)
 station_trawl_info <-
-  rbind(goa_grid_2021_shp[, c("GOAGRID_ID", "STRATUM", "TRAWLABLE",
+  rbind(goa_grid_2021_shp[, c("GOAGRID_ID", "STATIONID", "STRATUM", "TRAWLABLE",
                               "AREA_KM2", "PERIMETER_KM", "DESIGN")],
-        overlap_with_trawl_polygon[, c("GOAGRID_ID", "STRATUM", "TRAWLABLE",
+        overlap_with_trawl_polygon[, c("GOAGRID_ID", "STATIONID", "STRATUM", "TRAWLABLE",
                                        "AREA_KM2", "PERIMETER_KM", "DESIGN")])
 
 station_trawl_info <- station_trawl_info[order(station_trawl_info$GOAGRID_ID),]
