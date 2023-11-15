@@ -1,17 +1,102 @@
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## Project:       Inventory stations by trawlability status
+## Author:        Zack Oyafuso (zack.oyafuso@noaa.gov)
+## Description:
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+## Restart R Session before running
+rm(list = ls())
+
+## Import Packages
 library(terra)
 
-stations_23 <- terra::vect("data/GOA/processed_shapefiles/goa_stations_2023.shp")
-stations_21UT <- terra::vect("data/GOA/processed_shapefiles/GOA_untrawl_2021.shp")
-stations_21 <- terra::vect("data/GOA/shapefiles_from_GDrive/goagrid.shp")
+## Import station trawlability info. This shapefile contains both the
+## historical and 2025 stations
+station_trawl_info <-
+  terra::vect(x = "data/GOA/processed_shapefiles/station_trawl_info.shp")
 
-## Take out stratum = 0 for stations_21
-nrow(stations_21) #21588 stations in historical design
-nrow(stations_21UT) #1695 stations in historical design are untrawlable
+## How many unique stations are in the historical vs 2025 stations
+tapply(X = station_trawl_info$GOAGRID_ID,
+       INDEX = station_trawl_info$DESIGN_YEA,
+       FUN = function(x) length(unique(x)))
 
-## Which grid cells have untrawlable areas
-UT_cells <- sort(unique(stations_21UT$ID))
-nrow(stations_23[stations_23$STATIONID %in% UT_cells])
-## We need to account for 1613 grid cells and 3115 stations within these cells
+## Tabulate trawlability status for historical stations
+with(as.data.frame(station_trawl_info[station_trawl_info$DESIGN_YEA == 1984, ]),
+     table(TRAWLABLE))
+
+stations_full_overlap <-
+  with(subset(x = as.data.frame(station_trawl_info),
+              subset = DESIGN_YEA == 2025),
+     as.numeric(x = names(x = which(x = table(GOAGRID_ID) == 1))))
+length(stations_full_overlap)
+# 20543 of the 24333 2025 stations have full overlap in trawlability status
+
+table(subset(x = as.data.frame(x = station_trawl_info),
+       subset = GOAGRID_ID %in% stations_full_overlap,
+       select = "TRAWLABLE"))
+
+stations_full_overlap <-
+  with(subset(x = as.data.frame(station_trawl_info),
+              subset = DESIGN_YEA == 2025),
+       as.numeric(x = names(x = which(x = table(GOAGRID_ID) == 1))))
+length(stations_full_overlap)
+
+stations_partial_overlap <-
+  with(subset(x = as.data.frame(station_trawl_info),
+              subset = DESIGN_YEA == 2025),
+       as.numeric(x = names(x = which(x = table(GOAGRID_ID) > 1))))
+length(stations_partial_overlap)
+# There are 3790 stations that are characterized by more than one trawlability
+# status. Stations that are characterized by unknown and trawlable areas should
+# not be a problem.
+
+stations_partial_overlap_UT <-
+  subset(x = as.data.frame(x = station_trawl_info),
+         subset = GOAGRID_ID %in% stations_partial_overlap &
+           TRAWLABLE == "N")$GOAGRID_ID
+# stations_partial_overlap_UT <-
+
+cells_partial_overlap_UT <-
+  unique(subset(x = as.data.frame(x = station_trawl_info),
+         subset = GOAGRID_ID %in% stations_partial_overlap &
+           TRAWLABLE == "N")$STATIONID)
+
+cells_partial_overlap_UT_polygon <-
+  subset(x = as.data.frame(x = station_trawl_info),
+         subset = STATIONID %in% cells_partial_overlap_UT &
+           DESIGN_YEA == 2025)
+cells_partial_overlap_UT_polygon$TRAWLABLE <-
+  ifelse(test = cells_partial_overlap_UT_polygon$TRAWLABLE == "N",
+         yes = "N", no = "UNK")
+
+cells_partial_overlap_UT_polygon <-
+  stats::aggregate(AREA_KM2 ~ TRAWLABLE + GOAGRID_ID + STATIONID,
+                   data = cells_partial_overlap_UT_polygon,
+                   FUN = sum)
+
+stations_partial_overlap_UT_gt_5km2 <-
+  cells_partial_overlap_UT_polygon$GOAGRID_ID[which(cells_partial_overlap_UT_polygon$TRAWLABLE == "UNK" & cells_partial_overlap_UT_polygon$AREA_KM2 > 5)]
+
+stations_partial_overlap_UT_lt_5km2 <-
+  cells_partial_overlap_UT_polygon$GOAGRID_ID[which(cells_partial_overlap_UT_polygon$TRAWLABLE == "UNK" & cells_partial_overlap_UT_polygon$AREA_KM2 < 5)]
+
+subset(x = as.data.frame(station_trawl_info), GOAGRID_ID == 45094)
+plot(station_trawl_info[station_trawl_info$STATIONID == "435-77" &
+                          station_trawl_info$DESIGN_YEA == 2025, ])
+subset(x = as.data.frame(station_trawl_info), STATIONID == "435-77" & DESIGN_YEA == 2025)
+plot(station_trawl_info[station_trawl_info$GOAGRID_ID == 45094 &
+                          station_trawl_info$TRAWLABLE == "N", ],
+     add = T, col = "red")
+plot(station_trawl_info[station_trawl_info$GOAGRID_ID == 45094 &
+                          station_trawl_info$TRAWLABLE == "UNK", ],
+     add = T, col = "lightgrey")
+
+plot(station_trawl_info[station_trawl_info$GOAGRID_ID == 45095 &
+                          station_trawl_info$TRAWLABLE == "N", ],
+     add = T, col = "orange")
+plot(station_trawl_info[station_trawl_info$GOAGRID_ID == 45095 &
+                          station_trawl_info$TRAWLABLE == "UNK", ],
+     add = T, col = "darkgrey")
 
 ## Scenario 1/2: historical UT station encompasses entire grid
 ##               new station also encompasses entire grid
