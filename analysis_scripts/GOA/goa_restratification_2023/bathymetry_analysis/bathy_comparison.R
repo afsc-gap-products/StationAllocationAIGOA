@@ -1,38 +1,40 @@
 output_dir <- "//AKC0SS-n086/AKC_PubliC/Dropbox/Zimm/GEBCO/GOA/"
 
+# terra::rast("C:/Users/zack.oyafuso/Desktop/goa_bathy/")
+
 library(terra)
-ardem <- terra::vect(x = paste0(output_dir,
+ARDEM <- terra::vect(x = paste0(output_dir,
                                 "BTS_test_depths_ARDEM/",
                                 "BTS_test_depths_ARDEM.shp"))
-ardem$RASTERVALU <- ardem$RASTERVALU * -1
+ARDEM$RASTERVALU <- ARDEM$RASTERVALU * -1
 
-gebco <- terra::vect(x = paste0(output_dir,
+GEBCO <- terra::vect(x = paste0(output_dir,
                                 "BTS_test_depths_GEBCO/",
                                 "BTS_test_depths_GEBCO.shp"))
-gebco$RASTERVALU <- gebco$RASTERVALU * -1
+GEBCO$RASTERVALU <- GEBCO$RASTERVALU * -1
 
-mix <- terra::vect(x = paste0(output_dir,
+Mix <- terra::vect(x = paste0(output_dir,
                               "BTS_test_depths/",
                               "BTS_test_depths_extract_goa_bathy.shp"))
 
-bathys <- merge(x = subset(x = as.data.frame(ardem),
+bathys <- merge(x = subset(x = as.data.frame(ARDEM),
                            subset = RASTERVALU != 9999,
                            select = -Diffs),
-                y = subset(x = as.data.frame(gebco),
+                y = subset(x = as.data.frame(GEBCO),
                            select = c("hauljoin", "RASTERVALU")) ,
                 all = TRUE,
                 by = "hauljoin",
-                suffixes = c("_ardem", "_gebco"))
+                suffixes = c("_ARDEM", "_GEBCO"))
 bathys <- merge(x = bathys,
-                y = subset(x = as.data.frame(mix),
+                y = subset(x = as.data.frame(Mix),
                            select = c("hauljoin", "RASTERVALU")),
                 by = "hauljoin")
 
 names(x = bathys) <- c("hauljoin", "obs_depth",
                        "lon", "lat",
-                       "ardem", "gebco", "mix")
+                       "ARDEM", "GEBCO", "Mix")
 
-error <- sweep(x = bathys[, c("ardem", "gebco", "mix")],
+error <- sweep(x = bathys[, c("ARDEM", "GEBCO", "Mix")],
                MARGIN = 1,
                STATS = bathys$obs_depth,
                FUN = "-")
@@ -50,48 +52,52 @@ mae <- apply(X = abs(error),
              FUN = mean,
              na.rm = TRUE)
 
-par(mfrow = c(2, 2), mar = c(3, 3, 2, 1), oma = c(3, 3, 0, 0))
-for (isource in c("mix", "gebco", "ardem")) {
+png(filename = paste0("analysis_scripts/GOA/goa_restratification_2023/",
+                      "bathymetry_analysis/FigXX_results.png"),
+    width = 190, height = 190, units = "mm", res = 500, family = "serif")
 
-  lm_ <- lm(get(isource) ~ obs_depth,
-            data = bathys)
-  lm_predict <-
-    predict(object = lm_,
-            newdata = data.frame(obs_depth = 1:1000),
-            interval = "predict")
+par(mfrow = c(2, 2), mar = c(4, 5, 2, 1), oma = c(0, 0, 0, 0))
+hist(bathys$obs_depth, ann = F, col = "darkgrey", nclass = 25, las = 1)
+mtext(side = 1, "Observed Depth (m)", font = 2, line = 2.2)
+mtext(side = 2, "Frequency", line = 3, font = 2)
+mtext(side = 3,
+      text = "A) Histogram of Observed Depths",
+      line = 0.5, font = 2)
+legend(x = 575, y = 750,
+       legend = c(
+         paste0("Min: ", min(x = bathys$obs_depth, na.rm = T), " m"),
+         paste0("Median: ", median(x = bathys$obs_depth, na.rm = T), " m"),
+         paste0("Mean: ", round(mean(x = bathys$obs_depth, na.rm = T)), " m"),
+         paste0("Max: ", max(x = bathys$obs_depth, na.rm = T), " m")),
+       bty = "n")
+box()
 
+for (isource in c("Mix", "GEBCO", "ARDEM")) {
   plot(bathys[, isource] ~ bathys$obs_depth,
+       xlim = c(0, 1000), ylim = c(0, 1000),
        pch = 16, asp = 1, type = "n", ann = F, las = 1)
-  polygon(x = c(1:1000, 1000:1),
-          y = c(lm_predict[, "lwr"], rev(lm_predict[, "upr"])),
-          col = "blue" )
-  abline(a = 0, b = 1, lwd = 2, col = "red")
 
   points(get(isource) ~ obs_depth,
          data = bathys,
          cex = 0.5)
 
-  mtext(side = 3, text = isource, line = 0.5, font = 2)
-  text(x = 700,
-       y = 200,
-       labels = paste0("Mean % Bias: ", round(x = mean(error[, isource],
-                                                       na.rm = TRUE),
-                                              digits = 1),
-                       "\nMedian % Bias: ", round(x = median(error[, isource],
-                                                             na.rm = TRUE),
-                                                  digits = 1),
-                       "\nMAE: ", round(mae[isource], 1),
-                       "\nRMSE: ", round(rmse[isource], 1)) )
+  mtext(side = 3,
+        text = paste(c("Mix" = "B)", "GEBCO" = "C)", "ARDEM" = "D)")[isource], isource),
+        line = 0.5, font = 2)
+  legend("bottomright",
+         legend = c(paste0("Mean PB: ", round(x = mean(error[, isource],
+                                                           na.rm = TRUE),
+                                                  digits = 1)),
+                    paste0("Median PB: ", round(x = median(error[, isource],
+                                                               na.rm = TRUE),
+                                                    digits = 1)),
+                    paste0("MAE: ", round(mae[isource], 1)),
+                    paste0("RMSE: ", round(rmse[isource], 1))),
+         bty = "n")
 
+  mtext(side = 1, "Observed Depth (m)", font = 2, line = 2.25)
+  mtext(side = 2, "Raster Value (m)", line = 3, font = 2)
+  abline(a = 0, b = 1, lwd = 2, col = "red")
 }
-mtext(side = 1, outer = TRUE, "Observed Depth (m)", font = 2)
-mtext(side = 2, outer = TRUE, "Raster Value (m)", line = 1, font = 2)
 
-plot(1, type = "n", axes = F)
-legend("center", legend = c("identity line", "95% Prediction Interval") ,
-       bty = "n", text.col = "white", cex = 1.5)
-legend("center", legend = c("identity line", "95% Prediction Interval") ,
-       lwd = c(2, NA), bty = "n", col = "red", text.col = "white", cex = 1.5)
-legend("center", legend = c("Identity Line", "95% Prediction Interval") ,
-       bty = "n", fill = c(NA,"blue"), border = NA, yjust = 0, cex = 1.5)
-
+dev.off()
