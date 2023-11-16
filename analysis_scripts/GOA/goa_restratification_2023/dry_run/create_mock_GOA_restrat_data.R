@@ -135,12 +135,12 @@ racebase_sizecomp_stratum <-
     fill_NA_method = "AIGOA")
 
 ## Aggregate size composition across subareas
-racebase_sizecomp_subareas <- gapindex::calc_sizecomp_subareas(
+racebase_sizecomp_subareas <- gapindex::calc_sizecomp_subarea(
   racebase_tables = racebase_data_mock,
   size_comps = racebase_sizecomp_stratum)
 
 ## Calculate age-length key
-racebase_alk <- gapindex::calc_ALK(racebase_tables = racebase_data_mock,
+racebase_alk <- gapindex::calc_alk(racebase_tables = racebase_data_mock,
                                    unsex = "all",
                                    global = F)
 
@@ -202,8 +202,7 @@ main_metadata_columns <-
 ##   Append to existing tables in Oracle (schema GAP_PRODUCTS)
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-for (idata in c("agecomp",  "sizecomp", "biomass",
-                 "cpue")[-4]) {
+for (idata in c("agecomp",  "sizecomp", "biomass", "cpue")) {
 
   match_idx <-
     match(x = names(x = get(x = paste0("racebase_", idata))),
@@ -221,5 +220,7 @@ for (idata in c("agecomp",  "sizecomp", "biomass",
                  dat = get(x = paste0("racebase_", idata)),
                  tablename = paste0("GAP_PRODUCTS.", toupper(x = idata)),
                  append = TRUE, rownames = F)
+
+  cat("Done with", idata, "\n")
 
 }
