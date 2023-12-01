@@ -12,7 +12,7 @@ rm(list = ls())
 ##   Import gapindex R package and terra
 ##   Connect to Oracle. Make sure you are connected to the VPN
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# devtools::install_github("zoyafuso-NOAA/design-based-indices")
+# devtools::install_github("afsc-gap-products/gapindex", force = TRUE)
 library(terra)
 library(lubridate)
 library(gapindex)
@@ -84,7 +84,7 @@ racebase_data_mock$strata <-
   RODBC::sqlQuery(channel = sql_channel,
                   query = paste0("SELECT * FROM GAP_PRODUCTS.AREA ",
                                  "WHERE SURVEY_DEFINITION_ID = 47 ",
-                                 "AND DESIGN_YEAR = 2025 AND TYPE = 'STRATUM'"))
+                                 "AND DESIGN_YEAR = 2025 AND AREA_TYPE = 'STRATUM'"))
 names(racebase_data_mock$strata)[names(racebase_data_mock$strata) ==
                                    "AREA_ID"] <- "STRATUM"
 racebase_data_mock$strata$SURVEY <- "GOA"
@@ -93,7 +93,7 @@ racebase_data_mock$subarea <-
   RODBC::sqlQuery(channel = sql_channel,
                   query = paste0("SELECT * FROM GAP_PRODUCTS.AREA ",
                                  "WHERE SURVEY_DEFINITION_ID = 47 ",
-                                 "AND DESIGN_YEAR = 2025 AND TYPE != 'STRATUM'"))
+                                 "AND DESIGN_YEAR = 2025 AND AREA_TYPE != 'STRATUM'"))
 
 racebase_data_mock$stratum_groups <-
   RODBC::sqlQuery(channel = sql_channel,
