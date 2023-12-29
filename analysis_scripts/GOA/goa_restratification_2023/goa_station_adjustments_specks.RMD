@@ -1,0 +1,76 @@
+---
+title: "GOA 2025 Station Modifications"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+library(terra)
+station_trawl_info <- terra::vect(x = "../../../data/GOA/processed_shapefiles/station_trawl_info.shp")
+new_station_trawl_info <- terra::vect(x = "../../../data/GOA/processed_shapefiles/goa_stations_2025_modified.shp")
+towpaths <- 
+  terra::vect(x = "../../../data/GOA/processed_shapefiles/towpaths.shp")
+```
+
+```{r loop over stuff, echo = F, fig.height = 1.5, fig.width = 3, results='asis'}
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##   Plot every change
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+for (reason in 2:10) {
+  cat(paste0("# Scenario ", reason, "\n"))
+  
+  changed_stns <- subset(x = new_station_trawl_info,
+                         subset = new_station_trawl_info$FLAG == reason)
+  par(mfrow = c(1, 2))
+  for (irow in 1:nrow(x = changed_stns) ) {
+    temp_cell <- subset(x = station_trawl_info,
+                        subset = station_trawl_info$DESIGN_YEA == 2025 &
+                          station_trawl_info$STATIONID ==
+                          changed_stns$STATIONID[irow])
+    temp_stn <- subset(x = station_trawl_info,
+                       subset = station_trawl_info$DESIGN_YEA == 2025 &
+                         station_trawl_info$GOAGRID_ID ==
+                         changed_stns$GOAGRID_ID[irow])
+    temp_tows <- subset(x = towpaths,
+                        subset = towpaths$STATIONID ==
+                          changed_stns$STATIONID[irow])
+
+
+    plot(terra::aggregate(temp_cell), axes = F, mar = c(0,0,1.5,0))
+
+    plot(temp_stn, add = TRUE,
+         col = c("N" = "red",
+                 "UNK" = "grey",
+                 "Y" = "green")[temp_stn$TRAWLABLE])
+    if (nrow(x = temp_tows) > 0) {
+      plot(temp_tows, lwd = 3, add = TRUE, xpd = TRUE,
+           col = c("TRUE" = "black",
+                   "FALSE" = "blue")[temp_tows$PERFORMANC])
+      text(terra::centroids(temp_tows),
+           temp_tows$YEAR, cex = 0.75)
+    }
+
+    change <- subset(x = new_station_trawl_info,
+                     subset = new_station_trawl_info$GOAGRID_ID ==
+                       changed_stns$GOAGRID_ID[irow])
+    plot(terra::aggregate(temp_cell), axes = F, mar = c(0,0,1.5,0))
+    plot(change, add = TRUE,
+         col = c("N" = "red",
+                 "UNK" = "grey",
+                 "Y" = "green")[change$TRAWLABLE])
+    if (nrow(x = temp_tows) > 0) {
+      plot(temp_tows, lwd = 3, add = TRUE, xpd = TRUE,
+           col = c("1" = "black",
+                   "0" = "blue")[paste0(temp_tows$PERFORMANC)])
+      text(terra::centroids(temp_tows),
+           temp_tows$YEAR, cex = 0.75)
+    }
+
+    mtext(side = 3, outer = T, cex = 0.75, font = 2, line = -1, xpd = NA,
+          text = paste0("Cell ID: ", changed_stns$STATIONID[irow],
+                        " New Station ID: ", changed_stns$GOAGRID_ID[irow]))
+  }
+  
+  cat("\n\n")
+}
+
+```
