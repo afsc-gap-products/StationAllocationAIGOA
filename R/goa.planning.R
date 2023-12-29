@@ -32,61 +32,10 @@
 #'
 
 goa.planning <- function(selection.type = "random", min.size = 5){
-   # Data constraints for pool of trawlable stations in AI_STATIONS are that they come from AI surveys since 1994,
-   # have Performance >= 0, HaulType = 3, and StationID and Stratum are Not Null. Cutoff at 1994 seems
-   # related to change from LORAN in 1991 to GPS in 1994.
-
-  # Collect input to parameterize station allocation process
 
   # set options for session
   options(digits = 10)
   options(stringsAsFactors = F)
-
-  # select Survey
-  survey <- readline("Enter Survey Designation (e.g., GOA or AI):  ")
-  survey <- toupper(survey)
-  # survey <- "AI"
-  # cat(paste("\nThis function will allocate only Aleutian Islands stations.\nFor GOA station allocation see Paul von Szalay.\n"))
-
-  ## Collect login information for Oracle
-  schema <- "AIGOA_WORK_DATA"
-  pwrd <- readline("Enter current password for Oracle AIGOA_WORK_DATA schema: ")
-
-  # ERROR HANDLING in case wrong survey designation is entered
-  while(!(survey %in% c("AI","GOA","EBSSLOPE"))){
-    cat("\nWrong Survey Designation\nTry again...\n", sep = "")
-    survey <- readline("Enter Survey Designation (e.g., GOA or AI):  ")
-    survey <- toupper(survey)
-    # print(survey)
-  }
-
-  # indicate max number of trawls for survey
-  number.of.tows <- readline("Enter number of trawl hauls to be allocated: ")
-  number.of.tows <- as.numeric(number.of.tows)
-
-  # indicate year for which station allocation is being made
-  year <- readline("Enter survey year you are allocating stations for (e.g., 2006): ")
-  year <- as.numeric(year)
-
-  # select destination directory for bubble plots
-  output.file <- choose.dir(caption = "Select destination folder")
-
-  library(RODBC)
-  library(XLConnect)	## reading and writing Excel workbooks and sheets
-
-  cat("\nGetting station data from Oracle...\n", sep = "")
-
-  channel <- odbcConnect(dsn = "AFSC", uid = schema, pwd = pwrd,
-                         believeNRows = F)
-
-  if(survey == "GOA") {
-    grid.query <- paste("select stationid, stratum, center_lat, center_long, area_km2 from goa.goagrid_gis where
-			(trawlable = 'Y' or trawlable is null) and area_km2 >", min.size)
-    points <- sqlQuery(channel = channel, query = grid.query,
-                       believeNRows = FALSE)
-    names(points) <- casefold(names(points))
-    stations.available <- NULL
-  }
 
   if(survey == "AI") {
     ## As of June2019 candidate stations are chosen from previously
@@ -94,19 +43,6 @@ goa.planning <- function(selection.type = "random", min.size = 5){
     ## stations from 1991) combined with station trawlability recorded
     ## in AI.AIGRID_GIS
     points <- get.ai.stations(channel, schema, pwrd, survey)
-    names(points) <- casefold(names(points))
-    # number of trawlable stations from RACEBase.HAUL from 1991-2019 excluding
-    # Green Hope tows in 1991 and incorporating trawlability indications = 785
-    # on 06/19/2019
-    stations.available <- tapply(points$stationid, points$stratum, length)
-  }
-
-  if(survey == "EBSSLOPE") {
-    grid.query <- "select stationid, stratum, latitude, longitude, 0 area_km2 from ebsslope.slope_stations"
-    points <- sqlQuery(channel = channel, query = grid.query,
-                       believeNRows = FALSE)
-    # Figure out how many stations are available in each strata
-    # (relevant only to AI survey for now.)
     names(points) <- casefold(names(points))
     stations.available <- tapply(points$stationid, points$stratum, length)
   }
