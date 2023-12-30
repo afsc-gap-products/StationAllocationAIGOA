@@ -31,14 +31,6 @@ reference:
     contents:
       - "get.ai.stations"
       - "allocate.effort"
-  - title: Gulf of Alaska Station Allocation
-    contents:
-      - "goa_allocate_stations"
   - title: Utility Functions
     contents:
       - "read_sql"
-  - title: Datasets
-    contents:
-      - "D_gct"
-      - "optim_df"
-      - "goa_stations_2025"
