@@ -7,6 +7,14 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
+```{r, echo = F}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+options(rmarkdown.html_vignette.check_title = FALSE)
+```
+
 The Aleutian Islands (AI) bottom trawl survey (BTS) is a stratified random design with XX strata consisting of combinations of management area (Southern Bering Sea, Eastern AI, Central AI, and Western AI) and depth bin (1 – 100 m, 101 – 200 m. 201 – 300 m, 301 – 500 m). The Gulf of Alaska (GOA) BTS from 1984-2023 consisted of XX strata consisting of combinations of International North Pacific Fisheries Commission (INPFC) management area (Shumagin, Chirikof, Kodiak, Yakutat, Southeast Alaska), depth bin (1 – 100 m, 101 – 200 m. 201 – 300 m, 301 – 500 m, 501 – 700 m, 701 – 1000 m). These GOA strata are secondarily classified by terrain—shelf, gully, and slope. The station allocation consists of a modified multi-species Neyman allocation scheme that takes into account survey variance and potential economic value across a suite of taxa as well as stratum area. 
 
 First, the estimated total biomass for a subset of species (Table 1) are calculated starting from 1991 in the AI and 1990 in the GOA to the most recent year’s survey. Along with total biomass, stratum survey standard deviation is also calculated.
