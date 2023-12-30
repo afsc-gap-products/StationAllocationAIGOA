@@ -3,3 +3,6 @@
 ^data/GOA$
 ^data/AI$
 ^\.github$
+^analysis_scripts/
+^presentations/
+^R/deprecated functions

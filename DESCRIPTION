@@ -11,7 +11,7 @@ LazyData: true
 RoxygenNote: 7.2.3
 Imports: RODBC, SamplingStrata
 Depends: 
-    R (>= 4.0.2)
+    R (>= 4.0.0)
 Suggests: 
     knitr,
     rmarkdown

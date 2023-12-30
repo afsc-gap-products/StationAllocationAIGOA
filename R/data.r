@@ -7,8 +7,7 @@
 #' \describe{
 #'   \item{Col1}{description of Col1}
 #'   \item{Col2}{description of Col2}
-#' }
-"D_gct"
+#"D_gct"
 
 #' Name_of_the_data3
 #'
@@ -19,7 +18,7 @@
 #'   \item{Col1}{description of Col1}
 #'   \item{Col2}{description of Col2}
 #' }
-"goa_stations_2025"
+#"goa_stations_2025"
 
 #' Name_of_the_data4
 #'
@@ -30,4 +29,4 @@
 #'   \item{Col1}{description of Col1}
 #'   \item{Col2}{description of Col2}
 #' }
-"optim_df"
+#"optim_df"

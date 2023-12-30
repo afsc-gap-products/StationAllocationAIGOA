@@ -1,4 +1,3 @@
 exportPattern("^[[:alpha:]]+")
 import(RODBC)
-import(XLConnect)
-import(tcltk)
+importFrom("stats", "sd", "var", "weighted.mean")
