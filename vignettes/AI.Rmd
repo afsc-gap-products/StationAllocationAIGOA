@@ -1,0 +1,42 @@
+---
+title: "Aleutian Islands (and Gulf of Alaska, 1984-2023)"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Aleutian Islands}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+The Aleutian Islands (AI) bottom trawl survey (BTS) is a stratified random design with XX strata consisting of combinations of management area (Southern Bering Sea, Eastern AI, Central AI, and Western AI) and depth bin (1 – 100 m, 101 – 200 m. 201 – 300 m, 301 – 500 m). The Gulf of Alaska (GOA) BTS from 1984-2023 consisted of XX strata consisting of combinations of International North Pacific Fisheries Commission (INPFC) management area (Shumagin, Chirikof, Kodiak, Yakutat, Southeast Alaska), depth bin (1 – 100 m, 101 – 200 m. 201 – 300 m, 301 – 500 m, 501 – 700 m, 701 – 1000 m). These GOA strata are secondarily classified by terrain—shelf, gully, and slope. The station allocation consists of a modified multi-species Neyman allocation scheme that takes into account survey variance and potential economic value across a suite of taxa as well as stratum area. 
+
+First, the estimated total biomass for a subset of species (Table 1) are calculated starting from 1991 in the AI and 1990 in the GOA to the most recent year’s survey. Along with total biomass, stratum survey standard deviation is also calculated.
+
+Second, ex-vessel prices imported from Commercial Operator’s Annual Report provided by the Alaska Department of Fish and Game for a specific list of taxa for the year of the most recent BTS, e.g., the 2022 prices were used when planning for the AI 2024 survey. These ex-vessel prices are averaged over the entire state of Alaska (Table 1). The list of species represent economically important and assessed species with the exception of sablefish and Pacific halibut. These two species have much higher ex-vessel prices and end up solely influencing the station allocation if included. Potential economic value is the product of estimated total biomass and ex-vessel price. The term “potential” is used to acknowledge that this economic value is not extracted from the fishing process. The actual realized economic value would include total landings data instead of estimated total biomass.
+
+
+**Table 1**: 2022 ex-vessel prices for the subset of taxa used in the Aleutian Island station allocation. Rock soles (Species code 10260) is a species complex consisting of both northern and southern rock sole. source: Alaska Department of Fish and Game Commercial Operator’s Annual Report (COAR; last accessed 29 December 2023; [website](https://www.adfg.alaska.gov/index.cfm?adfg=fishlicense.coar_buying))
+
+|     Species Code    |     COAR Name                          |     Ex-Vessel Price ($ per pound)    |
+|---------------------|----------------------------------------|--------------------------------------|
+|     21720           |     cod, Pacific (gray)                |     0.47                             |
+|     10110           |     flounder, arrowtooth               |     0.08                             |
+|     10130           |     sole, flathead                     |     0.06                             |
+|     10260           |     sole, rock                         |     0.07                             |
+|     10200           |     sole, rex                          |     0.07                             |
+|     30420           |     rockfish, northern                 |     0.12                             |
+|     30060           |     perch, Pacific ocean               |     0.15                             |
+|     30020           |     rockfish, black                    |     0.88                             |
+|     30051           |     rockfish, thornyhead   (idiots)    |     0.75                             |
+|     30576           |     rockfish, rougheye                 |     0.25                             |
+|     30152           |     rockfish, shortraker               |     0.26                             |
+|     30151           |     rockfish, dusky                    |     0.13                             |
+|     21921           |     greenling, Atka   mackerel         |     0.08                             |
+|     21740           |     pollock, walleye                   |     0.19                             |
+
+Third, for each taxon, the optimal station allocation using the Neyman formula is calculated across strata. Then for each stratum, the optimal allocated stations across years are averaged to create a year-averaged optimal allocation for each taxon. The stratum optimal allocation is then a weighted average across species using the potential economic value as the weight. 
+
+Fourth, stations are randomly drawn within each stratum and randomly assigned to fishing vessels. In the Aleutian Islands, the sampling frame only consists of historically trawlable stations. However, since 2022, a small percentage of stations are randomly chosen for vessels to find new stations within their respective strata. The strata chosen for new stations are balanced between large strata (i.e., strata that are easier to find new stations) and thin strata (i.e., strata that are harder to find stations) and are split between fishing vessels. In the GOA, the sampling frame only excludes historically untrawlable stations. Vessel assignments of stations are randomized in the GOA except for in the Kodiak INPFC management area where the vessels “lane” with one vessel covering stations north of Kodiak and into Lower Cook Inlet and the other vessel covering stations south of Kodiak. 
+
+**Bonus Stations**: There are opportunities to conduct stations in excess of the prescribed total number of stations. To guide which strata to which these “bonus” stations should be allocated, the station allocation process is recalculated with a higher total number of stations, with the strata containing bonus stations being those with higher allocated stations. For example, in the AI 2024 station allocation, 400 stations were initially allocated. Then, the same procedure was conducted using a higher 420 stations and the strata with excess stations were those that contained extra stations. Bonus stations are shared between the vessels and it is up to the discretion of the field party chiefs and vessel captains on both vessels as to when bonus stations are conducted and where the bonus stations (within their respective strata) are conducted.
+
+The code used to produce the the AI station allocation is currently located  [here](https://github.com/afsc-gap-products/StationAllocationAIGOA/blob/main/analysis_scripts/AI/AI_2024/station_allocation.R): 

@@ -5,50 +5,31 @@
 \title{Allocate stations across strata}
 \usage{
 allocate.effort(
-  survey,
-  channel = NA,
-  schema,
-  pwrd,
-  points,
-  stations.available,
-  number.of.tows = 741,
-  output.file
+  channel = NULL,
+  species_weightings = NULL,
+  stratum_stats = NULL,
+  n_total = 400,
+  min_n_stratum = 2
 )
 }
 \arguments{
-\item{survey}{character string. Defaults to "AI" for Aleutian Islands}
+\item{channel}{open connection object. Created from gapindex::get_connected()}
 
-\item{channel}{open connection object. Created from RODBC::odbcConnect()}
+\item{species_weightings}{dataframe of species codes and weightings}
 
-\item{schema}{character string. SQL schema name. Defaults to AIGOA_WORK_DATA}
+\item{stratum_stats}{dataframe of stratum means and sds for each species}
 
-\item{pwrd}{character string. SQL password}
+\item{n_total}{integer. Number of total stations}
 
-\item{points}{dataframe of potential station locations queried from SQL,
-called in AIGOASurveyPlanning::goa.planning().}
-
-\item{stations.available}{integer. Vector of available stations in each
-stratum.}
-
-\item{number.of.tows}{integer. Number of total stations.}
-
-\item{output.file}{character string. Output directory.}
+\item{min_n_stratum}{integer. Minimum number of stations in a stratum}
 }
 \value{
-
+A named vector of allocated stations across strata
 }
 \description{
 Allocates stations across strata based on: stratum size, historical standard
-devation of cpue, ex vessel price, and abundance of a preselected subset of
-species, and the time it takes to complete tows. (Reference a tech memo for
-how exactly Neyman Allocations are handled?).
-
-Updates of code from Ned:
-Initial changes are to reformat code into my preferred configuration
-Added ", believeNRows = FALSE" to odbc calls for version 3.0.1 of R
-
-Added package XLConnect to provide functionality to to read Excel
-workbooks under version 3.0.1 of R in 64-bit environment
+deviation of cpue, ex vessel price, and abundance of a preselected subset of
+species (reference a tech memo for how exactly Neyman allocations are handled?).
 
 Created 12/18/13
 }

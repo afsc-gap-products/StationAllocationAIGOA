@@ -1,0 +1,9 @@
+---
+title: "Gulf of Alaska"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Gulf of Alaska}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+

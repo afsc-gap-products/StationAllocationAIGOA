@@ -4,6 +4,15 @@
     <loc>/404.html</loc>
   </url>
   <url>
+    <loc>/articles/AI.html</loc>
+  </url>
+  <url>
+    <loc>/articles/GOA.html</loc>
+  </url>
+  <url>
+    <loc>/articles/index.html</loc>
+  </url>
+  <url>
     <loc>/authors.html</loc>
   </url>
   <url>
@@ -13,19 +22,10 @@
     <loc>/reference/allocate.effort.html</loc>
   </url>
   <url>
-    <loc>/reference/depth_mods_2023.html</loc>
-  </url>
-  <url>
     <loc>/reference/D_gct.html</loc>
   </url>
   <url>
     <loc>/reference/get.ai.stations.html</loc>
-  </url>
-  <url>
-    <loc>/reference/get.planning.data.html</loc>
-  </url>
-  <url>
-    <loc>/reference/goa.planning.html</loc>
   </url>
   <url>
     <loc>/reference/goa_allocate_stations.html</loc>
@@ -40,15 +40,6 @@
     <loc>/reference/optim_df.html</loc>
   </url>
   <url>
-    <loc>/reference/pick.gridpoints.html</loc>
-  </url>
-  <url>
-    <loc>/reference/plot.allocations.by.stratum.html</loc>
-  </url>
-  <url>
-    <loc>/reference/plot.strata.stations.html</loc>
-  </url>
-  <url>
-    <loc>/reference/vessel.allocation.html</loc>
+    <loc>/reference/read_sql.html</loc>
   </url>
 </urlset>

@@ -4,21 +4,10 @@
 \alias{get.ai.stations}
 \title{Query available Aleutian Islands stations}
 \usage{
-get.ai.stations(
-  channel = NA,
-  schema = "AIGOA_WORK_DATA",
-  pwrd = NA,
-  survey = "AI"
-)
+get.ai.stations(channel = NULL)
 }
 \arguments{
-\item{channel}{open connection object. Created from RODBC::odbcConnect()}
-
-\item{schema}{character string. SQL schema name. Defaults to AIGOA_WORK_DATA}
-
-\item{pwrd}{character string. SQL password}
-
-\item{survey}{character string. Defaults to "AI" for Aleutian Islands}
+\item{channel}{open connection object. Created from gapindex::get_connected()}
 }
 \value{
 A dataframe of candidate stations (field stationid) for Aleutian

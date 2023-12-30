@@ -1,0 +1,44 @@
+template:
+  bootstrap: 5
+  bootswatch: cerulean
+  bslib:
+    pkgdown-nav-height: 100px
+
+navbar:
+  structure:
+    left: [ai, goa, reference]
+  components:
+    ai:
+      text: Aleutian Islands
+      href: articles/AI.html
+    goa:
+      text: Gulf of Alaska
+      href: articles/GOA.html
+    reference:
+      text: Functions
+      href: reference/index.html
+
+footer:
+  structure:
+    right: FALSE
+    left: built_with
+
+home:
+  sidebar: FALSE
+
+reference:
+  - title: Aleutian Island Station Allocation
+    contents:
+      - "get.ai.stations"
+      - "allocate.effort"
+  - title: Gulf of Alaska Station Allocation
+    contents:
+      - "goa_allocate_stations"
+  - title: Utility Functions
+    contents:
+      - "read_sql"
+  - title: Datasets
+    contents:
+      - "D_gct"
+      - "optim_df"
+      - "goa_stations_2025"

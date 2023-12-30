@@ -1,15 +1,18 @@
 Package: StationAllocationAIGOA
 Type: Package
-Title: What the Package Does (Title Case)
+Title: Station Allocation for Aleutian Island and Gulf of ALaska Bottom Trawl Surveys
 Version: 0.1.0
-Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
+Author: Zack Oyafuso <zack.oyafuso@noaa.gov>
+Maintainer: Zack Oyafuso <zack.oyafuso@noaa.gov>
+Description: Station Allocation for NOAA/NMFS/AFSC/RACE/GAP Aleutian Island and Gulf of Alaska (2025-on) bottom trawl surveys.
 License: What license is it under?
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 7.1.2
-Imports: RODBC, XLConnect, tcltk, SamplingStrata, gapindex
+RoxygenNote: 7.2.3
+Imports: RODBC,  SamplingStrata, gapindex
 Depends: 
-    R (>= 3.6.0)
+    R (>= 4.0.2)
+Suggests: 
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr
