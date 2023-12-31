@@ -106,13 +106,15 @@ goa_allocate_stations <-
                      FUN = function(x)
                        sapply(X = split(x = x,
                                         f = optim_df$STRATUM),
-                              FUN = function(xx) sd(as.vector(xx))))[strata_names,]
+                              FUN = function(xx)
+                                stats::sd(x = as.vector(xx))))[strata_names,]
     strs_mean <- apply(X = dens[, spp_idx, ],
                        MARGIN = 2,
                        FUN = function(x)
                          sapply(X = split(x = x,
                                           f = optim_df$STRATUM),
-                                FUN = function(xx) mean(as.vector(xx))))[strata_names,]
+                                FUN = function(xx)
+                                  stats::mean(x = as.vector(xx))))[strata_names,]
 
     strs_stats <- cbind(data.frame(
       STRATO = 1:length(strata_names),

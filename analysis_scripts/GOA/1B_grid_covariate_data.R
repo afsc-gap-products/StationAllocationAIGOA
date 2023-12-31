@@ -1,87 +1,93 @@
-##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-## Project:       VAST covariates across goa grid
-## Author:        Zack Oyafuso (zack.oyafuso@noaa.gov)
-## Description:   Assign bathymetry value from the EFH data layer to each grid
-##                in the Gulf of Alaska grid.
-##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+###############################################################################
+## Project:     VAST covariates across goa grid
+## Author:      Zack Oyafuso (zack.oyafuso@noaa.gov)
+## Description: Assign bathymetry value from the EFH data lyaer to each grid in
+##              the Gulf of Alaska grid.
+###############################################################################
 rm(list = ls())
 
-##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-##   Import packages
-##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##################################################
+####   Import packages
+##################################################
 library(terra)
 
-##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-##   CRSs used
-##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##################################################
+####   CRSs used
+##################################################
 lonlat_crs <- "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
 
-##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-##   Merge bathy rasters ----
-##   These rasters are really dense, so they are stored in parts and then
-##   "puzzled" togethered using terra::merge()
-##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-split_bathy <- list()
+##################################################
+####   Merge together bathymetry rasters
+##################################################
+goa_bathy <-
+  terra::rast(x = "//AKC0SS-n086/AKC_PubliC/Dropbox/Zimm/GEBCO/GOA/goa_bathy")
 
-n_split_rasters <- length(grep(x = dir("data/GOA/processed_rasters/"),
-                               pattern = "aigoa"))
-for (i in 1:n_split_rasters) {
-  split_bathy[[i]] <- terra::rast(x = paste0("data/GOA/processed_rasters/",
-                                             "aigoa_", i, ".tif"))
-}
+##################################################
+####   Import Current Strata (current_survey_strata)
+####   Import spatial domain outline mask (current_survey_mask)
+####   Import Extrapolation grid (goa_grid)
+####   Import CPUE data (data)
+####   Untrawlable areas (goa_grid_nountrawl)
+##################################################
+current_survey_strata <-
+  terra::vect(x = "data/GOA/shapefiles_from_GDrive/goa_strata.shp")
+current_survey_strata <-
+  current_survey_strata[current_survey_strata$STRATUM != 0]
+current_survey_strata <-
+  terra::project(x = current_survey_strata, terra::crs(x = goa_bathy))
 
-bathy <- do.call(what = terra::merge, args = split_bathy)
-rm(split_bathy, i, n_split_rasters)
+goa_grid <- read.csv("data/GOA/extrapolation_grid/GOAThorsonGrid_Less700m.csv")
+goa_grid <- goa_grid[, c("Id", "Shape_Area", "Longitude", "Latitude")]
+goa_grid$Shape_Area <- goa_grid$Shape_Area / 1000 / 1000 #Convert to km2
+names(goa_grid) <- c( "Id", "Area_km2", "Lon", "Lat")
 
-##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-##   Import spatial objects:
-##   Historical station polygons (historical stations)
-##   Create mask by dissovling inner boundaries of the historical stations
-##   Extrapolation grid used for VAST, 2 nmi resolution (goa_grid)
-##   CPUE data (data)
-##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-historical_stations <- terra::vect(x = "data/GOA/shapefiles_from_GDrive//goagrid.shp")
-historical_stations <- terra::project(x = historical_stations, y = bathy)
+goa_data_geostat = read.csv("data/GOA/vast_data/goa_data_geostat.csv")
 
-historical_mask <- terra::aggregate(x = historical_stations)
+##################################################
+####   Transform extrapolation grid to aea, extract bathymetry values onto grid
+##################################################
+grid_shape = terra::vect(x = goa_grid[, c("Lon", "Lat", "Area_km2")],
+                         geom = c("Lon", "Lat"), keepgeom = TRUE,
+                         crs = lonlat_crs)
+grid_shape_aea <- terra::project(x = grid_shape, terra::crs(x = goa_bathy))
+grid_shape_aea[, c("Eastings", "Northings")] <- terra::crds(x = grid_shape_aea)
 
-vast_goa_grid <- read.csv("data/GOA/extrapolation_grid/GOAThorsonGrid.csv")
-vast_goa_grid <- vast_goa_grid[, c("Id", "Shape_Area", "Longitude", "Latitude")]
-vast_goa_grid$Shape_Area <- vast_goa_grid$Shape_Area / 1e6 #Convert to km2
-names(vast_goa_grid) <- c( "Id", "Area_km2", "Lon", "Lat")
+grid_shape_aea$Depth_m <-
+  terra::extract(x = goa_bathy, y = grid_shape_aea)$GOA_bathy
 
-data = read.csv("data/GOA/goa_vast_data_input.csv")
+##################################################
+####   Remove cells not already in the current GOA strata
+##################################################
+grid_shape_aea <- terra::intersect(x = grid_shape_aea,
+                                    y = current_survey_strata[, "STRATUM"])
 
-##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-##   Transform extrapolation grid to aea, extract bathymetry values onto grid
-##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-vast_goa_grid_shape <- terra::vect(x = vast_goa_grid[, c("Lon", "Lat")],
-                                   geom = c("Lon", "Lat"),
-                                   keepgeom = TRUE,
-                                   crs = lonlat_crs)
+##################################################
+####   Remove cells with depths outside the observed range to the range
+##################################################
+grid_shape_aea <- grid_shape_aea[
+  (grid_shape_aea$Depth_m >= min(x = goa_data_geostat$Depth_m) &
+     grid_shape_aea$Depth_m <= 700),
+]
 
-vast_goa_grid_shape_aea = terra::project(x = vast_goa_grid_shape, y = bathy)
-vast_goa_grid_shape_aea$Area_km2 <- vast_goa_grid$Area_km2
-vast_goa_grid_shape_aea$DEPTH_EFH <-
-  terra::extract(x = bathy, y = vast_goa_grid_shape_aea)$AIGOA_ba
+##################################################
+####   scale grid bathymetry values to standard normal, using the mean and sd
+####   of the BTS data
+##################################################
+BTS_mean <- stats::mean(log10(x = goa_data_geostat$Depth_m))
+BTS_sd   <-  stats::sd(log10(x = goa_data_geostat$Depth_m))
 
-##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-##   Remove cells not already in the goa grid
-##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-vast_goa_grid_shape_aea <- terra::intersect(x = vast_goa_grid_shape_aea,
-                                            y = historical_mask)
+grid_shape_aea$LOG10_DEPTH_M <- log10(x = grid_shape_aea$Depth_m)
+grid_shape_aea$LOG10_DEPTH_M_CEN <-
+  (grid_shape_aea$LOG10_DEPTH_M - BTS_mean) / BTS_sd
 
-##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-##  Remove cells with depths outside the observed range to the range
-##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-vast_goa_grid_shape_aea <-
-  vast_goa_grid_shape_aea[vast_goa_grid_shape_aea$DEPTH_EFH >= min(data$BOTTOM_DEPTH) &
-                            vast_goa_grid_shape_aea$DEPTH_EFH <= max(data$BOTTOM_DEPTH),]
-
-##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-##  Save
-##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-if(!dir.exists("data/GOA/")) dir.create("data/GOA/")
-write.csv(x = as.data.frame(vast_goa_grid_shape_aea),
+##################################################
+####   Save
+##################################################
+if (!dir.exists(paths = "data/GOA/vast_data/"))
+  dir.create(path = "data/GOA/vast_data/")
+write.csv(as.data.frame(x = grid_shape_aea),
           row.names = F,
-          file = "data/GOA/vast_grid_goa.csv")
+          file = "data/GOA/vast_data/goa_interpolation_grid.csv")
+
+saveRDS(object = as.data.frame(x = grid_shape_aea),
+        file = "data/GOA/vast_data/goa_interpolation_grid.RDS")
