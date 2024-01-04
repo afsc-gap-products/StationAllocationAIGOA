@@ -19,16 +19,16 @@ Kodiak,135,TRUE,126,150
 Kodiak,136,TRUE,151,700
 Kodiak,530,FALSE,701,1000
 Kodiak,630,FALSE,1001,3000
-Yakutat,42,TRUE,1,50
-Yakutat,43,TRUE,51,100
-Yakutat,144,TRUE,101,175
-Yakutat,145,TRUE,176,200
-Yakutat,242,TRUE,201,700
-Yakutat,540,FALSE,701,1000
-Yakutat,640,FALSE,1001,3000
-Southeastern,51,TRUE,1,100
-Southeastern,152,TRUE,101,200
-Southeastern,252,TRUE,201,300
-Southeastern,253,TRUE,301,700
-Southeastern,550,FALSE,701,1000
-Southeastern,650,FALSE,1001,3000
+West Yakutat,42,TRUE,1,50
+West Yakutat,43,TRUE,51,100
+West Yakutat,144,TRUE,101,175
+West Yakutat,145,TRUE,176,200
+West Yakutat,242,TRUE,201,700
+West Yakutat,540,FALSE,701,1000
+West Yakutat,640,FALSE,1001,3000
+Southeast Outside,51,TRUE,1,100
+Southeast Outside,152,TRUE,101,200
+Southeast Outside,252,TRUE,201,300
+Southeast Outside,253,TRUE,301,700
+Southeast Outside,550,FALSE,701,1000
+Southeast Outside,650,FALSE,1001,3000
