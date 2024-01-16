@@ -7,3 +7,43 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
+# Background
+
+In 2025, the Gulf of Alaska bottom trawl survey will be conducted under a new stratified random design. Oyafuso et al. (2021) describes the general methods used to define the new strata and Oyafuso et al. (2022) provides a comparison of optimized stratified designs versus the current random stratified design via simulation testing. The 2025 GOA stratified random survey design consists of two stratum variables. The first is NMFS management area, which consists of statistical reporting zones: 610 (Shumagin), 620 (Chirikof), 630 (Kodiak), 640 (West Yakutat), 650 (Southeast Outside). Within each NMFS management area, the optimization procedure described in Oyafuso et al. (2021) was used to define the placement of depth-defined strata in order to minimize expected sampling variance across a set of representative species (reproduced in Table 1, contained [here](data/GOA/species_list/species_list.csv)). The spatial footprint (0-700 m) and the sampling and statistical assumptions of the 2025 stratified random survey design will remain consistent with that of the current survey, thus ensuring the seamless continuation of the time series.
+
+```{r Table 1, echo = F, warning=F, fig.width=5}
+library(flextable)
+spp_list <- read.csv(file = "../data/GOA/species_list/species_list.csv")
+spp_list$SPECIES_CODE <- as.character(x = spp_list$SPECIES_CODE)
+spp_list$GROUP[spp_list$GROUP == "REBS rockfish"] <- 
+  "REBS rockfish*"
+names(x = spp_list) <- c("Taxon Common Name", "AFSC Species Code", "AFSC Common Name") 
+
+spp_table <- flextable::flextable(data = spp_list, 
+                                  cwidth = 2)
+set_caption(x = spp_table, caption = "Table 1: Taxon List used in the Gulf of Alaska Bottom Trawl Stratified Random Survey Design. *REBS rockfishes are a complex of rougheye (RE), blackspotted (BS), and unidentified RE or RB rockfishes, grouped in this procedure due to identification confidence issues prior to 2006.")
+```
+
+# Implementation of the 2025 GOA BTS Design
+
+**Survey Design**: The 2025 strata are defined in this [table, reproduced below] (data/GOA/strata_boundaries/depth_modifications_2025.csv) contained in this repository. These boundaries were optimized using GOA catch and effort data from 1996-2023 (excluding 2001) for fifteen representative taxa following Oyafuso et al. 2022 with some adjustments. An updated bathymetric layer, rounded to the nearest 25 m, was included as a stratum variable. This compilation is a mixture of AFSC and GEBCO bathymetric data and represents our most updated, best available data (Zimmerman et al., In Prep). The discretizing of the bathymetry layer was done in this step to increase the readability of the optimized solutions with respect to the boundaries of the depth bins.
+
+**Creation of Strata**: This [script](goa_strata_adjustments.R) uses the stratum depth boundaries to discretize the bathymetry raster, creating a raster of strata names. Then, raster cells of similar values and shared boundaries are merged together into polygons.
+
+**Survey Grid**: The current GOA (and Aleutian Islands) survey grid was created using lat-lon coordinates and projection, and thus approximates a 5-km resolution grid due to projection issues that distorts distances across latitude. A new 5-km resolution grid projected under XXX was created to rectify this projection issue and is intended to extend into the other current GAP survey regions (GOA, AI, Bering Sea), uniting the survey regions under one survey grid.
+
+**Creation of Stations**: Station is the unique combination of the 5-km survey grid and the strata polygons. (This script)[goa_station_adjustments.R] first intersects the new 5-km resolution grid with the stratum polygons to produce new GOA stations. Then, to inherit the trawlability information from the historical stations to the new stations, explicit decisions are created for new stations with mixed historical trawlability information, outlined in the decision tree below:
+
+# Repository Workflow
+
+The annual back-end maintenance of this package can be completed as soon as the GOA survey catch and effort data are finalized and station trawlability data are updated for a given survey year in anticipation for the following GOA survey. The main workflow of the maintenance of this package is detailed in the scripts within analysis_scripts/GOA/ within this repo:
+
+-   1A_operating_model_data.R: pulls catch and effort survey data from the GOA BTS for the taxa in Table X, saved internally within the repo as an RDS and csv file.
+
+-   1B_grid_covariate_data.R: prepares the 2-nmi resolution interpolation grid used in the vast model fitting, including attaching bathymetry values to each cell. This grid is different from the 5-km resolution survey grid used in survey planning.
+
+-   1C_fit_vast_models.R: Spatiotemporal models are fitted separately for each taxon using a vector autoregressive spatiotemporal ([VAST]()) model. Depth is included as a covariate modeled using two basal splines. Ten-fold cross validation is utilized to evaluate the inclusion of the depth covariate in the spatiotemporal models.
+
+-   1D_vast_cross_val_results.R: cross validation results are evaluated and the model with better out-of-fold deviance is chosen.
+
+-   1E_optimization_data.R: the predicted densities from the chosen models are collated into a 3-D array (indexed by interpolation grid cell, taxon, and year). These datasets are made available within the package so that it can be used in the goa_allocate_stations() function.
