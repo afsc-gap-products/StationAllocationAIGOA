@@ -1,3 +1,4 @@
 exportPattern("^[[:alpha:]]+")
 import(RODBC)
 importFrom("stats", "sd", "var", "weighted.mean")
+import(flextable)
