@@ -9,7 +9,8 @@ rm(list = ls())
 ##################################################
 ####   Import packages
 ##################################################
-library(terra)
+library(sf); library(stars)
+library(akgfmaps)
 
 ##################################################
 ####   CRSs used
@@ -29,19 +30,21 @@ goa_bathy <-
 ####   Import CPUE data (data)
 ####   Untrawlable areas (goa_grid_nountrawl)
 ##################################################
-current_survey_strata <-
-  terra::vect(x = "data/GOA/shapefiles_from_GDrive/goa_strata.shp")
-current_survey_strata <-
-  current_survey_strata[current_survey_strata$STRATUM != 0]
-current_survey_strata <-
-  terra::project(x = current_survey_strata, terra::crs(x = goa_bathy))
 
-goa_grid <- read.csv("data/GOA/extrapolation_grid/GOAThorsonGrid_Less700m.csv")
+goa_base_layers <- akgfmaps::get_base_layers(select.region = "goa",
+                                             set.crs = "EPSG:3338")
+goa_strata <-
+  terra::vect(x = "data/GOA/shapefiles_akgfmaps/goa_strata_2025.gpkg")
+
+
+
+goa_grid <-
+  read.csv(file = "data/GOA/extrapolation_grid/GOAThorsonGrid_Less700m.csv")
 goa_grid <- goa_grid[, c("Id", "Shape_Area", "Longitude", "Latitude")]
 goa_grid$Shape_Area <- goa_grid$Shape_Area / 1000 / 1000 #Convert to km2
-names(goa_grid) <- c( "Id", "Area_km2", "Lon", "Lat")
+names(x = goa_grid) <- c( "Id", "Area_km2", "Lon", "Lat")
 
-goa_data_geostat = read.csv("data/GOA/vast_data/goa_data_geostat.csv")
+goa_data_geostat = read.csv(file = "data/GOA/vast_data/goa_data_geostat.csv")
 
 ##################################################
 ####   Transform extrapolation grid to aea, extract bathymetry values onto grid
@@ -59,7 +62,7 @@ grid_shape_aea$Depth_m <-
 ####   Remove cells not already in the current GOA strata
 ##################################################
 grid_shape_aea <- terra::intersect(x = grid_shape_aea,
-                                    y = current_survey_strata[, "STRATUM"])
+                                   y = goa_strata[, "STRATUM"])
 
 ##################################################
 ####   Remove cells with depths outside the observed range to the range
@@ -73,8 +76,8 @@ grid_shape_aea <- grid_shape_aea[
 ####   scale grid bathymetry values to standard normal, using the mean and sd
 ####   of the BTS data
 ##################################################
-BTS_mean <- stats::mean(log10(x = goa_data_geostat$Depth_m))
-BTS_sd   <-  stats::sd(log10(x = goa_data_geostat$Depth_m))
+BTS_mean <- mean(x = log10(x = goa_data_geostat$Depth_m))
+BTS_sd   <-  sd(x = log10(x = goa_data_geostat$Depth_m))
 
 grid_shape_aea$LOG10_DEPTH_M <- log10(x = grid_shape_aea$Depth_m)
 grid_shape_aea$LOG10_DEPTH_M_CEN <-
