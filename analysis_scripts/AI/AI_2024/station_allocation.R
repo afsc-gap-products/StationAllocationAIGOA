@@ -1,6 +1,11 @@
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Project:       Aleutian Island BTS Station Allocation
 ## Author:        Zack Oyafuso (zack.oyafuso@noaa.gov)
+##
+## Description:   Station Allocation Procedure for the 2024 Aleutian Islands
+##                bottom trawl survey. Make sure you are connected to the VPN
+##                or network to connect to Oracle and to access the price data
+##                spreadsheet in the G: drive.
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ## Restart R Session before running
@@ -43,8 +48,9 @@ strata <- data.frame(stratum = sort(x = unique(x = strata$STRATUM)),
                      perim_km = tapply(X = strata$PERIMETER / 1000,
                                        INDEX = strata$STRATUM,
                                        FUN = sum))
-strata$edge_to_area <- with(strata,
-                            perim_km / 2 / sqrt(area_km2 * pi) )
+strata$edge_to_area <-
+  with(strata, perim_km / 2 / sqrt(area_km2 * pi) )
+
 strata$strata_type <-
   ifelse(test = strata$edge_to_area < mean(x = strata$edge_to_area) &
            strata$area_km2 > 1000,
@@ -52,10 +58,9 @@ strata$strata_type <-
          no = "thin")
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-##
-##   -- price data from COAR
-##   -- Because there is a species complex, it is easier to run gapindex to
-##      calculate mean and sd across strata for each species/species complex.
+##   Import price data from COAR. Because there is a species complex, it is
+##   easier to run gapindex to calculate mean and sd across strata for each
+##   species/species complex.
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 price_data <- readxl::read_excel(
   path = "G:/ALEUTIAN/AI 2024/Station Allocation/ai_exvessel_2022.xlsx")
@@ -63,8 +68,8 @@ price_data <- readxl::read_excel(
 ## Create df
 planning_species <-
   data.frame(
-    GROUP = c(price_data$species_code[price_data$species_code != 10260],
-              10260, 10260, 10260),
+    GROUP_CODE = c(price_data$species_code[price_data$species_code != 10260],
+                   10260, 10260, 10260),
     SPECIES_CODE = c(price_data$species_code[price_data$species_code != 10260],
                      10260, 10261, 10262)
   )
@@ -117,35 +122,42 @@ species_weightings$econ_value <- with(species_weightings,
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Pull candidate AI stations
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-candidate_stations <-
-  StationAllocationAIGOA::get.ai.stations(channel = channel)
+candidate_stations <- StationAllocationAIGOA::get.ai.stations(channel = channel)
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Calculate optimal allocation at 400 and 420 total stations
 ##   Minimum number of stations per stratum: 2 stations
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-n_400 <- StationAllocationAIGOA::allocate.effort(
+n_320 <- StationAllocationAIGOA::allocate.effort(
   channel = channel,
   species_weightings = species_weightings,
   stratum_stats = stratum_stats,
-  n_total = 399,
+  n_total = 321,
   min_n_stratum = 2)
-sum(n_400)
+sum(n_320)
 
-n_420 <- StationAllocationAIGOA::allocate.effort(
+n_340 <- StationAllocationAIGOA::allocate.effort(
   channel = channel,
   species_weightings = species_weightings,
   stratum_stats = stratum_stats,
-  n_total = 424,
+  n_total = 340,
   min_n_stratum = 2)
-sum(n_420)
+sum(n_340)
+
+n_341 <- StationAllocationAIGOA::allocate.effort(
+  channel = channel,
+  species_weightings = species_weightings,
+  stratum_stats = stratum_stats,
+  n_total = 341,
+  min_n_stratum = 2)
+sum(n_341)
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-##   Concatenate the station effort per stratum
+##   Bind the station effort across strata under 400 and 420 total stations
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 station_allocation <-
-  data.frame(stratum = names(x = n_400),
-             region = sapply(X = substr(x = names(x = n_400),
+  data.frame(stratum = names(x = n_320),
+             region = sapply(X = substr(x = names(x = n_320),
                                         start = 1,
                                         stop = 1),
                              FUN = function(x)
@@ -157,54 +169,42 @@ station_allocation <-
              avail = tapply(X = candidate_stations$stationid,
                             INDEX = candidate_stations$stratum,
                             FUN = length),
-             n_400,
-             n_420)
+             n_320,
+             n_340)
 
 ## Merge strata information to station_allocation using "stratum" as the key
 station_allocation <- merge(x = station_allocation,
                             y = strata,
                             by = "stratum")
 
-## Bonus stations: the difference between the allocation at 420 total stations
-## versus the allocation at 400 total stations.
-station_allocation$bonus_stn <- with(station_allocation, n_420 - n_400)
-
-## For the 2024 allocation, there is only one stratum where the number of
-## allocated stations > number of available stations. This is stratum 212 in the
-## western Aleutians where there are currently 50 candidate stations for 54
-## total allocation stations. Four of the stations in stratum 212 will be
-## automatically deemed new stations.
-station_allocation$new_stn <- with(station_allocation,
-                                   sapply(X = n_400 - avail,
-                                          FUN = function(x) max(x, 0)))
-station_allocation$n_400[station_allocation$stratum == 212] <-
-  station_allocation$n_400[station_allocation$stratum == 212] -
-  station_allocation$new_stn[station_allocation$stratum == 212]
+## Bonus stations: the difference between the allocation at 340 total stations
+## versus the allocation at 320 total stations.
+station_allocation$bonus_stn <- with(station_allocation, n_340 - n_320)
+station_allocation$new_stn <- 0
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   For the other regions, we will randomly choose a large and a thin stratum
-##   from which two of the allocated stations from the chosen large stratum
-##   will be converted to new stations and one of the allocated stations from
-##   the chosen thin stratum will be converted to a new station.
+##   from which one allocated station from the chosen stratum will be converted
+##   to a "new" station to be searched.
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-for (iregion in c("Central", "Eastern", "SBS")) {
+for (iregion in c("Western", "Central",
+                  "Eastern", "SBS")) { ## Loop over regions -- start
   chosen_large_stratum <-
     sample(x = which(station_allocation$region == iregion &
                        station_allocation$strata_type == "large"),
            size = 1)
-  station_allocation$new_stn[chosen_large_stratum] <- 2
-  station_allocation$n_400[chosen_large_stratum] <-
-    station_allocation$n_400[chosen_large_stratum] - 2
+  station_allocation$new_stn[chosen_large_stratum] <- 1
+  station_allocation$n_320[chosen_large_stratum] <-
+    station_allocation$n_320[chosen_large_stratum] - 1
 
   chosen_thin_stratum <-
     sample(x = which(station_allocation$region == iregion &
                        station_allocation$strata_type == "thin"),
            size = 1)
   station_allocation$new_stn[chosen_thin_stratum] <- 1
-  station_allocation$n_400[chosen_thin_stratum] <-
-    station_allocation$n_400[chosen_thin_stratum] - 1
-
-}
+  station_allocation$n_320[chosen_thin_stratum] <-
+    station_allocation$n_320[chosen_thin_stratum] - 1
+} ## Loop over regions -- end
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Randomly draw stations based on the allocation
@@ -212,7 +212,7 @@ for (iregion in c("Central", "Eastern", "SBS")) {
 station_allocation <-
   with(station_allocation,
        data.frame(stratum, region,
-                  prescribed_400 = n_400,
+                  prescribed_320 = n_320,
                   new_stn,
                   bonus_stn))
 
@@ -228,7 +228,7 @@ for (istratum in 1:length(x = station_allocation$stratum))
       data.frame( candidate_stations[
         sample(x = which(x = candidate_stations$stratum ==
                            station_allocation$stratum[istratum]),
-               size = station_allocation$prescribed_400[istratum]),
+               size = station_allocation$prescribed_320[istratum]),
       ],
       station_type = "prescribed")
     )
@@ -266,7 +266,7 @@ names(x = picked_stns) <- toupper(x = names(x = picked_stns))
 xlsx::write.xlsx(
   x = subset(x = picked_stns,
              select = c(STRATUM, STATION_TYPE, STATIONID, LONGITUDE, LATITUDE)),
-  file = paste0("G:/ALEUTIAN/AI 2024/Station Allocation/",
-                "ai_2024_station_allocation.xlsx"),
+  file = paste0("G:/ALEUTIAN/AI ", current_year, "/Station Allocation/",
+                "ai_", current_year, "_station_allocation_320stn.xlsx"),
   row.names = F, showNA = F
 )
