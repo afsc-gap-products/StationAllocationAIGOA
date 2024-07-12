@@ -10,26 +10,23 @@ rm(list = ls())
 #### Import gapindex, Connect to Oracle
 ##################################################
 library(gapindex)
-sql_channel <- gapindex::get_connected()
+chl <- gapindex::get_connected(check_access = FALSE)
 
 ##################################################
 #### Set up haul-level CPUE survey
 ##################################################
 spp_set <- read.csv(file = "data/GOA/species_list/species_list.csv")
+planning_years <- c(1996, 1999, seq(from = 2003, to = 2023, by = 2))
 
 ## Pull Data from RACEBASE
 gapindex_data <- gapindex::get_data(survey_set = "GOA",
-                                    year_set = c(1996, 1999,
-                                                 seq(from = 2003,
-                                                     to = format(x = Sys.Date(),
-                                                                 format = "%Y"),
-                                                     by = 2)),
+                                    year_set = planning_years,
                                     spp_codes = spp_set[,-3],
                                     pull_lengths = FALSE,
-                                    sql_channel = sql_channel)
+                                    channel = chl)
 
 ## Calculate and zero-fill CPUE
-gapindex_cpue <- gapindex::calc_cpue(racebase_tables = gapindex_data)
+gapindex_cpue <- gapindex::calc_cpue(gapdata = gapindex_data)
 
 ## Format catch and effort data for VAST. Note: The `AreaSwept_km2` field set
 ## to 1 when using CPUE in the `Catch_KG` field.
@@ -56,4 +53,5 @@ if (!dir.exists(paths = "data/GOA/vast_data/"))
 write.csv(x = data_geostat,
           file = "data/GOA/vast_data/goa_data_geostat.csv",
           row.names = F)
-saveRDS(object = data_geostat, file = "data/GOA/vast_data/goa_data_geostat.RDS")
+saveRDS(object = data_geostat,
+        file = "data/GOA/vast_data/goa_data_geostat.RDS")
