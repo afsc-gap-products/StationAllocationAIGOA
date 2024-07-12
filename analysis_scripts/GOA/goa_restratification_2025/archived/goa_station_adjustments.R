@@ -274,3 +274,6 @@ terra::writeVector(x = towpaths,
                    filename = paste0("data/GOA/processed_shapefiles/",
                                      "towpaths.shp"),
                    overwrite = T)
+
+goa_stations_2025 <- as.data.frame(x = new_station_trawl_info)
+usethis::use_data(goa_stations_2025, overwrite = TRUE)

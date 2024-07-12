@@ -12,11 +12,11 @@ rm(list = ls())
 ##   Import gapindex R package and terra
 ##   Connect to Oracle. Make sure you are connected to the VPN
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# devtools::install_github("afsc-gap-products/gapindex", force = TRUE)
+# devtools::install_github("afsc-gap-products/gapindex@using_datatable", force = TRUE)
 library(terra)
 library(lubridate)
 library(gapindex)
-sql_channel <- gapindex::get_connected()
+channel <- gapindex::get_connected(check_access = F)
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Get RACEBASE data for biomass/abundance taxa for year 2019
@@ -28,18 +28,14 @@ racebase_data <- gapindex::get_data(
   haul_type = 3,
   abundance_haul = c("Y"),
   pull_lengths = TRUE,
-  sql_channel = sql_channel)
+  channel = channel)
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Import new strata
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 strata_2025 <-
   terra::vect(x = "data/GOA/processed_shapefiles/goa_strata_2025.shp")
-names(x = strata_2025) <- c("SURVEY", "STRATUM", "AREA", "PERIMETER",
-                            "INPFC_AREA", "MIN_DEPTH", "MAX_DEPTH",
-                            "DESCRIPTION", "SUMMARY_AREA", "SUMMARY_DEPTH",
-                            "SUMMARY_AREA_DEPTH", "REGULATORY_AREA_NAME",
-                            "STRATUM_TYPE")
+names(x = strata_2025) <- toupper(x = names(x = strata_2025))
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Reclassify haul station locations
@@ -60,8 +56,8 @@ haul_locs_2025 <- terra::extract(x = strata_2025, y = haul_locs_aea)
 
 ## Change year to 2023 in the survey cruise data
 racebase_data_mock <- racebase_data
-racebase_data_mock$survey$DESIGN_YEAR <- 2025
-racebase_data_mock$survey_design$YEAR <-
+racebase_data_mock$survey$DESIGN_YEAR <-
+  racebase_data_mock$survey$YEAR <-
   racebase_data_mock$survey_design$DESIGN_YEAR <- 2025
 
 ## create new (unique) CRUISE, CRUISEJOIN, and HAULJOIN values in the cruise
@@ -78,10 +74,11 @@ racebase_data_mock$haul$CRUISE <- 202501
 racebase_data_mock$haul$STRATUM <- haul_locs_2025$STRATUM
 racebase_data_mock$haul$START_TIME <-
   racebase_data_mock$haul$START_TIME + lubridate::years(6)
+# racebase_data_mock$catch <-
 
 ## Set strata table as the 2023 strata
 racebase_data_mock$strata <-
-  RODBC::sqlQuery(channel = sql_channel,
+  RODBC::sqlQuery(channel = channel,
                   query = paste0("SELECT * FROM GAP_PRODUCTS.AREA ",
                                  "WHERE SURVEY_DEFINITION_ID = 47 ",
                                  "AND DESIGN_YEAR = 2025 AND AREA_TYPE = 'STRATUM'"))
@@ -90,16 +87,17 @@ names(racebase_data_mock$strata)[names(racebase_data_mock$strata) ==
 racebase_data_mock$strata$SURVEY <- "GOA"
 
 racebase_data_mock$subarea <-
-  RODBC::sqlQuery(channel = sql_channel,
-                  query = paste0("SELECT * FROM GAP_PRODUCTS.AREA ",
-                                 "WHERE SURVEY_DEFINITION_ID = 47 ",
-                                 "AND DESIGN_YEAR = 2025 AND AREA_TYPE != 'STRATUM'"))
+  data.table::data.table(RODBC::sqlQuery(channel = channel,
+                                         query = paste0("SELECT * FROM GAP_PRODUCTS.AREA ",
+                                                        "WHERE SURVEY_DEFINITION_ID = 47 ",
+                                                        "AND DESIGN_YEAR = 2025 AND AREA_TYPE != 'STRATUM'")))
 
 racebase_data_mock$stratum_groups <-
-  RODBC::sqlQuery(channel = sql_channel,
-                  query = paste0("SELECT * FROM GAP_PRODUCTS.STRATUM_GROUPS ",
-                                 "WHERE SURVEY_DEFINITION_ID = 47 ",
-                                 "AND DESIGN_YEAR = 2025"))
+  data.table::data.table(SURVEY = "GOA",
+                         RODBC::sqlQuery(channel = channel,
+                                         query = paste0("SELECT * FROM GAP_PRODUCTS.STRATUM_GROUPS ",
+                                                        "WHERE SURVEY_DEFINITION_ID = 47 ",
+                                                        "AND DESIGN_YEAR = 2025")))
 
 racebase_data_mock$catch$HAULJOIN <- racebase_data$catch$HAULJOIN * 1000
 
@@ -113,47 +111,47 @@ racebase_data_mock$specimen[, c("CRUISEJOIN", "HAULJOIN")] <-
 racebase_data_mock$specimen$CRUISE <- 202501
 
 ## Calculate CPUE
-racebase_cpue <- gapindex::calc_cpue(racebase_tables = racebase_data_mock)
+racebase_cpue <- gapindex::calc_cpue(gapdata = racebase_data_mock)
 
 ## Calculate biomass/abundance/mean and var CPUE across strata
 racebase_biomass_stratum <-
-  gapindex::calc_biomass_stratum(racebase_tables = racebase_data_mock,
+  gapindex::calc_biomass_stratum(gapdata = racebase_data_mock,
                                  cpue = racebase_cpue)
 
 ## Aggregate biomass/abundance/mean and var CPUE across subareas
 racebase_biomass_subareas <-
-  gapindex::calc_biomass_subarea(racebase_tables = racebase_data_mock,
-                                 biomass_strata = racebase_biomass_stratum)
+  gapindex::calc_biomass_subarea(gapdata = racebase_data_mock,
+                                 biomass_stratum = racebase_biomass_stratum)
 
 ## Calculate size composition across strata
 racebase_sizecomp_stratum <-
   gapindex::calc_sizecomp_stratum(
-    racebase_tables = racebase_data_mock,
-    racebase_cpue = racebase_cpue,
-    racebase_stratum_popn = racebase_biomass_stratum,
+    gapdata = racebase_data_mock,
+    cpue = racebase_cpue,
+    abundance_stratum = racebase_biomass_stratum,
     spatial_level = "stratum",
     fill_NA_method = "AIGOA")
 
 ## Aggregate size composition across subareas
-racebase_sizecomp_subareas <- gapindex::calc_sizecomp_subarea(
-  racebase_tables = racebase_data_mock,
-  size_comps = racebase_sizecomp_stratum)
+racebase_sizecomp_subareas <- calc_sizecomp_subarea(
+  gapdata = racebase_data_mock,
+  sizecomp_stratum = racebase_sizecomp_stratum)
 
 ## Calculate age-length key
-racebase_alk <- gapindex::calc_alk(racebase_tables = racebase_data_mock,
+racebase_alk <- gapindex::calc_alk(gapdata = racebase_data_mock,
                                    unsex = "all",
                                    global = F)
 
 ## Calculate age composition across strata
 racebase_agecomp_stratum <- gapindex::calc_agecomp_stratum(
-  racebase_tables = racebase_data_mock,
+  gapdata = racebase_data_mock,
   alk = racebase_alk,
-  size_comp = racebase_sizecomp_stratum)
+  sizecomp_stratum = racebase_sizecomp_stratum)
 
 ## Aggregate age composition for the entire region
 racebase_agecomp_subarea <- gapindex::calc_agecomp_region(
-  racebase_tables = racebase_data_mock,
-  age_comps_stratum = racebase_agecomp_stratum)
+  gapdata = racebase_data_mock,
+  agecomp_stratum = racebase_agecomp_stratum)
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Combine stratum and subarea tables
@@ -169,17 +167,21 @@ names(x = racebase_biomass_stratum)[
 ] <- "AREA_ID"
 
 racebase_biomass <-
-  rbind(racebase_biomass_stratum[, names(racebase_biomass_subareas)],
-        racebase_biomass_subareas)
-racebase_biomass <- subset(x = racebase_biomass, select = -SURVEY)
+  rbind(racebase_biomass_stratum[, names(x = racebase_biomass_subareas),
+                                 with = F],
+        racebase_biomass_subareas )
+racebase_biomass <- subset(x = racebase_biomass,
+                           select = c(-SURVEY))
 
 names(x = racebase_sizecomp_stratum)[
   names(x = racebase_sizecomp_stratum) == "STRATUM"
 ] <- "AREA_ID"
+racebase_sizecomp_stratum <- subset(x = racebase_sizecomp_stratum, select = c(-SURVEY))
 
 racebase_sizecomp <-
   rbind(racebase_sizecomp_subareas,
-        racebase_sizecomp_stratum[, names(racebase_sizecomp_subareas)])
+        racebase_sizecomp_stratum[, names(x = racebase_sizecomp_subareas),
+                                  with = F])
 
 
 names(x = racebase_agecomp_stratum$age_comp)[
@@ -188,21 +190,23 @@ names(x = racebase_agecomp_stratum$age_comp)[
 
 racebase_agecomp <-
   rbind(racebase_agecomp_subarea,
-        racebase_agecomp_stratum$age_comp[, names(racebase_agecomp_subarea)])
-racebase_agecomp <- subset(x = racebase_agecomp, select = -SURVEY)
+        racebase_agecomp_stratum$age_comp[, names(x = racebase_agecomp_subarea),
+                                          with = F])
+racebase_agecomp$AREA_ID_FOOTPRINT <- "GOA"
+head(racebase_agecomp)
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Pull table metadata
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 main_metadata_columns <-
-  RODBC::sqlQuery(channel = sql_channel,
+  RODBC::sqlQuery(channel = channel,
                   query = "SELECT * FROM GAP_PRODUCTS.METADATA_COLUMN")
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Append to existing tables in Oracle (schema GAP_PRODUCTS)
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-for (idata in c("agecomp",  "sizecomp", "biomass", "cpue")) {
+for (idata in c("agecomp",  "sizecomp", "biomass", "cpue")[4]) {
 
   match_idx <-
     match(x = names(x = get(x = paste0("racebase_", idata))),
@@ -216,7 +220,7 @@ for (idata in c("agecomp",  "sizecomp", "biomass", "cpue")) {
                     datatype = METADATA_DATATYPE[match_idx],
                     colname_desc = METADATA_COLNAME_DESC[match_idx]))
 
-  RODBC::sqlSave(channel = sql_channel,
+  RODBC::sqlSave(channel = channel,
                  dat = get(x = paste0("racebase_", idata)),
                  tablename = paste0("GAP_PRODUCTS.", toupper(x = idata)),
                  append = TRUE, rownames = F)

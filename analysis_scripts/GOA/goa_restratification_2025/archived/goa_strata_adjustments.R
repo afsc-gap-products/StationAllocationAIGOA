@@ -27,8 +27,11 @@ library(RColorBrewer)
 depth_mods <-
   read.csv(file = "data/GOA/strata_boundaries/depth_modifications_2025.csv")
 bathy <-
-  # terra::rast("//AKC0SS-n086/AKC_PubliC/Dropbox/Zimm/GEBCO/GOA/goa_bathy/")
-  terra::rast("C:/Users/zack.oyafuso/Desktop/goa_bathy/")
+  terra::rast("//AKC0SS-n086/AKC_PubliC/Dropbox/Zimm/GEBCO/GOA/goa_bathy")
+# terra::rast("C:/Users/zack.oyafuso/Desktop/goa_bathy/")
+
+old_goa_strata <-
+  terra::vect(x = "data/GOA/shapefiles_from_GDrive/goa_strata.shp")
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Import 2021 stations ----
@@ -69,9 +72,14 @@ ca_land <- terra::aggregate(x = ca_land)
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 nmfs <- terra::vect(x = "data/GOA/shapefiles_from_GDrive/GOA_Shapes.shp")
 nmfs <- terra::project(x = nmfs, y = bathy)
-nmfs$area_name <- c("Southeastern", "Southeastern", "Shumagin", "Chirikof",
-                    "Kodiak", "Yakutat", NA)
-nmfs <- terra::aggregate(x = nmfs, by = "area_name")
+nmfs$AREA_NAME <- c("Southeast Outside", "Southeast Outside", "Shumagin",
+                    "Chirikof", "Kodiak", "West Yakutat", NA)
+nmfs$REP_AREA <- c(650, 650, 610, 620, 630, 640, 649, NA)
+
+nmfs <- terra::aggregate(x = nmfs, by = "REP_AREA")
+nmfs <- subset(x = nmfs,
+               select = c("AREA_NAME", "REP_AREA"),
+               subset = !is.na(x = nmfs$AREA_NAME))
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Create stratum polygons ----
@@ -79,10 +87,10 @@ nmfs <- terra::aggregate(x = nmfs, by = "area_name")
 ##   and append to strata_list
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 strata_list <- strata_agg_list <- list()
-for (idistrict in unique(depth_mods$manage_area)) { ## Loop over district --st.
+for (idistrict in unique(x = depth_mods$manage_area)) { ## Loop over area --st.
 
   ## Mask bathymetry raster to just the management area and goa_domain
-  district_outline <- nmfs[nmfs$area_name == idistrict]
+  district_outline <- nmfs[nmfs$AREA_NAME  == idistrict]
 
   district_bathy <- terra::mask(x = bathy,
                                 mask = goa_domain)
@@ -99,10 +107,10 @@ for (idistrict in unique(depth_mods$manage_area)) { ## Loop over district --st.
   ## Discretize the `bathy`` raster: Define each raster cell based on the
   ## defined stratum depth boundaries in `depth_mods` and create an arbitrary
   ## integer label for each stratum.
-  values(district_bathy) <-
-    as.integer(as.character(cut(x = values(district_bathy),
+  terra::values(district_bathy) <-
+    as.integer(as.character(cut(x = terra::values(x = district_bathy),
                                 breaks = c(0, depth_boundary$upper_depth_m),
-                                labels = 1:nrow(depth_boundary)) ))
+                                labels = 1:nrow(x = depth_boundary)) ))
 
   ## Convert discretized raster to polygon based on those discrete values
   strata_poly <- terra::as.polygons(x = district_bathy)
@@ -117,14 +125,14 @@ for (idistrict in unique(depth_mods$manage_area)) { ## Loop over district --st.
     temp_speck <- strata_poly_disagg[i, ]
     adj_polys <- nearest_poly[nearest_poly[, 2] == i, 1]
 
-    if (length(adj_polys) != 0) {
+    if (length(x = adj_polys) != 0) {
       adj_poly <- adj_polys[which.max(x = strata_poly_disagg$area[adj_polys])]
-      strata_poly_disagg$goa_bathy[i] <- strata_poly_disagg$goa_bathy[adj_poly]
+      strata_poly_disagg$GOA_bathy[i] <- strata_poly_disagg$GOA_bathy[adj_poly]
     }
   }
 
   strata_poly_agg <- terra::aggregate(x = strata_poly_disagg,
-                                      by = "goa_bathy",
+                                      by = "GOA_bathy",
                                       fun = "sum",
                                       count = F)
 
@@ -140,14 +148,12 @@ for (idistrict in unique(depth_mods$manage_area)) { ## Loop over district --st.
 
     if (length(adj_polys) != 0) {
       adj_poly <- adj_polys[which.max(x = strata_poly_disagg$area[adj_polys])]
-      strata_poly_disagg$goa_bathy[i] <- strata_poly_disagg$goa_bathy[adj_poly]
+      strata_poly_disagg$GOA_bathy[i] <- strata_poly_disagg$GOA_bathy[adj_poly]
     }
   }
 
-
-
   strata_poly_agg <- terra::aggregate(x = strata_poly_disagg,
-                                      by = "goa_bathy",
+                                      by = "GOA_bathy",
                                       fun = "sum",
                                       count = F)
 
@@ -269,57 +275,37 @@ stations_agg[, !names(stations_agg) %in% names(stations_agg_2025)] <- NULL
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 goa_strata_2025 <-
   data.frame("SURVEY" = "GOA",
-             "STRATUM" = strata_list$stratum,
-             "AREA" = strata_list$AREA_KM2,
-             "PERIMETER" = strata_list$PER_KM,
-             "INPFC_AREA" = strata_list$manage_area,
+             "SURVEY_DEFINITION_ID" = 47,
+             "DESIGN_YEAR" = 2025,
+             "AREA_ID" = strata_list$stratum,
+             "AREA_TYPE" = "STRATUM",
+             "AREA_NAME" = paste0(strata_list$manage_area, ", ",
+                                  strata_list$lower_depth_m, "-",
+                                  strata_list$upper_depth_m, " m"),
+             "DESCRIPTION" = paste0(strata_list$manage_area, ", ",
+                                  strata_list$lower_depth_m, "-",
+                                  strata_list$upper_depth_m, " m"),
+             "AREA_KM2" = strata_list$AREA_KM2,
              "MIN_DEPTH" = strata_list$lower_depth_m,
              "MAX_DEPTH" = strata_list$upper_depth_m,
-             "DESCRIPTION" = with(as.data.frame(strata_list),
-                                  paste(manage_area, lower_depth_m, "m -",
-                                        upper_depth_m, "m")),
-             "SUMMARY_AREA" = NA,
-             "SUMMARY_DEPTH"= NA,
-             "SUMMARY_AREA_DEPTH" = NA,
-             "REGULATORY_AREA_NAME" =
-               sapply(X = strata_list$manage_area,
-                      FUN = function(x) switch(x,
-                                               "Shumagin" = "WESTERN GOA",
-                                               "Chirikof" = "CENTRAL GOA",
-                                               "Kodiak" = "CENTRAL GOA",
-                                               "Yakutat" = "EASTERN GOA",
-                                               "Southeastern" = "EASTERN GOA")),
-             "STRATUM_TYPE" = NA)
-
-strata_list[, names(goa_strata_2025)] <- goa_strata_2025
-strata_list[, !names(strata_list) %in% names(goa_strata_2025)] <- NULL
+             CRS = NA)
 
 goa_strata_agg_2025 <-
   data.frame("SURVEY" = "GOA",
-             "STRATUM" = strata_agg_list$stratum,
-             "AREA" = strata_agg_list$AREA_KM2,
-             "PERIMETER" = strata_agg_list$PER_KM,
-             "INPFC_AREA" = strata_agg_list$manage_area,
+             "SURVEY_DEFINITION_ID" = 47,
+             "DESIGN_YEAR" = 2025,
+             "AREA_ID" = strata_agg_list$stratum,
+             "AREA_TYPE" = "STRATUM",
+             "AREA_NAME" = paste0(strata_agg_list$manage_area, ", ",
+                                  strata_agg_list$lower_depth_m, "-",
+                                  strata_agg_list$upper_depth_m, " m"),
+             "DESCRIPTION" = paste0(strata_agg_list$manage_area, ", ",
+                                    strata_agg_list$lower_depth_m, "-",
+                                    strata_agg_list$upper_depth_m, " m"),
+             "AREA_KM2" = strata_agg_list$AREA_KM2,
              "MIN_DEPTH" = strata_agg_list$lower_depth_m,
              "MAX_DEPTH" = strata_agg_list$upper_depth_m,
-             "DESCRIPTION" = with(as.data.frame(strata_agg_list),
-                                  paste(manage_area, lower_depth_m, "m -",
-                                        upper_depth_m, "m")),
-             "SUMMARY_AREA" = NA,
-             "SUMMARY_DEPTH"= NA,
-             "SUMMARY_AREA_DEPTH" = NA,
-             "REGULATORY_AREA_NAME" =
-               sapply(X = strata_agg_list$manage_area,
-                      FUN = function(x) switch(x,
-                                               "Shumagin" = "WESTERN GOA",
-                                               "Chirikof" = "CENTRAL GOA",
-                                               "Kodiak" = "CENTRAL GOA",
-                                               "Yakutat" = "EASTERN GOA",
-                                               "Southeastern" = "EASTERN GOA")),
-             "STRATUM_TYPE" = NA)
-
-strata_agg_list[, names(goa_strata_agg_2025)] <- goa_strata_agg_2025
-strata_agg_list[, !names(strata_agg_list) %in% names(goa_strata_agg_2025)] <- NULL
+             CRS = NA)
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##
@@ -344,24 +330,16 @@ result_areas$PERC_DIFF <-
 if(!dir.exists("data/GOA/processed_shapefiles/"))
   dir.create("data/GOA/processed_shapefiles/")
 
-terra::writeVector(x = strata_list,
-                   filename = paste0("data/GOA/processed_shapefiles/",
-                                     "goa_strata_2025.shp"),
-                   overwrite = TRUE)
 terra::writeVector(x = strata_agg_list,
                    filename = paste0("data/GOA/processed_shapefiles/",
-                                     "goa_strata_agg_2025.shp"),
-                   overwrite = TRUE)
-
-terra::writeVector(x = stations,
-                   filename = paste0("data/GOA/processed_shapefiles/",
-                                     "goa_stations_2025.shp"),
+                                     "goa_strata_2025.shp"),
                    overwrite = TRUE)
 
 terra::writeVector(x = stations_agg,
                    filename = paste0("data/GOA/processed_shapefiles/",
-                                     "goa_stations_agg_2025.shp"),
+                                     "goa_stations_2025.shp"),
                    overwrite = TRUE)
+
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Plot, finally ----
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -373,7 +351,7 @@ for (iarea in unique(depth_mods$manage_area)) { ## Loop over area -- start
   ## temporary objects
   n_strata <- with(depth_mods, table(manage_area))[iarea]
   temp_strata <- depth_mods$stratum[depth_mods$manage_area == iarea]
-  temp_area <- terra::mask(x = stations, mask = nmfs[nmfs$area_name == iarea] )
+  temp_area <- terra::mask(x = stations, mask = nmfs[nmfs$AREA_NAME  == iarea] )
 
   ## Base layer
   plot(temp_area, axes = F, col = "white", border = F, mar = c(0,0,0,0))
@@ -389,12 +367,12 @@ for (iarea in unique(depth_mods$manage_area)) { ## Loop over area -- start
 
   ## Plot areas not covered by bathymery
   # plot(terra::mask(x = leftovers,
-  #                  mask = nmfs[nmfs$area_name == iarea]),
+  #                  mask = nmfs[nmfs$AREA_NAME  == iarea]),
   #      col = "black", add = TRUE, border = F)
 
   ## Untrawlable areas
   # plot(terra::mask(x = UT_stations21[UT_stations21],
-  #                  mask = nmfs[nmfs$area_name == iarea]),
+  #                  mask = nmfs[nmfs$AREA_NAME  == iarea]),
   #      col = rgb(0, 0, 0, 0.5), add = TRUE, border = FALSE)
 
   ## Land
@@ -402,7 +380,7 @@ for (iarea in unique(depth_mods$manage_area)) { ## Loop over area -- start
   plot(ca_land, add = TRUE, col = "tan", border = T, lwd = 0.1)
 
   ## Strata
-  plot(strata_list[strata_list$INPFC_AREA == iarea], lwd = 0.05, add = TRUE)
+  plot(strata_list[strata_list$manage_area == iarea], lwd = 0.05, add = TRUE)
 
   ## Legend
   legend_labels <- with(subset(depth_mods, manage_area == iarea),
@@ -410,8 +388,8 @@ for (iarea in unique(depth_mods$manage_area)) { ## Loop over area -- start
   legend_labels <- c(legend_labels, "Untrawlable", "Not Defined")
 
   legend(c("Shumagin" = "topleft", "Chirikof" = "topleft",
-           "Kodiak" = "bottomright", "Yakutat" = "bottom",
-           "Southeastern" = "bottomleft")[iarea],
+           "Kodiak" = "bottomright", "West Yakutat" = "bottom",
+           "Southeast Outside" = "bottomleft")[iarea],
          legend = legend_labels,
          title = "Stratum Legend",
          fill = c(RColorBrewer::brewer.pal("Set1", n = n_strata - 1),
@@ -433,7 +411,7 @@ for (iarea in unique(depth_mods$manage_area)) { ## Loop over area -- start
   n_strata <- with(depth_mods, table(manage_area))[iarea]
   temp_strata <- depth_mods$stratum[depth_mods$manage_area == iarea]
   temp_area <- terra::mask(x = stations_agg,
-                           mask = nmfs[nmfs$area_name == iarea] )
+                           mask = nmfs[nmfs$AREA_NAME  == iarea] )
 
   ## Base layer
   plot(temp_area, axes = F, col = "white", border = F, mar = c(0,0,0,0))
@@ -449,12 +427,12 @@ for (iarea in unique(depth_mods$manage_area)) { ## Loop over area -- start
 
   ## Plot areas not covered by bathymery
   # plot(terra::mask(x = leftovers,
-  #                  mask = nmfs[nmfs$area_name == iarea]),
+  #                  mask = nmfs[nmfs$AREA_NAME  == iarea]),
   #      col = "black", add = TRUE, border = F)
 
   ## Untrawlable areas
   # plot(terra::mask(x = UT_stations21[UT_stations21],
-  #                  mask = nmfs[nmfs$area_name == iarea]),
+  #                  mask = nmfs[nmfs$AREA_NAME  == iarea]),
   #      col = rgb(0, 0, 0, 0.5), add = TRUE, border = FALSE)
 
   ## Land
@@ -462,7 +440,7 @@ for (iarea in unique(depth_mods$manage_area)) { ## Loop over area -- start
   plot(ca_land, add = TRUE, col = "tan", border = T, lwd = 0.1)
 
   ## Strata
-  plot(strata_agg_list[strata_agg_list$INPFC_AREA == iarea],
+  plot(strata_agg_list[strata_agg_list$manage_area == iarea],
        lwd = 0.05, add = TRUE)
 
   ## Legend
@@ -471,8 +449,8 @@ for (iarea in unique(depth_mods$manage_area)) { ## Loop over area -- start
   legend_labels <- c(legend_labels, "Untrawlable", "Not Defined")
 
   legend(c("Shumagin" = "topleft", "Chirikof" = "topleft",
-           "Kodiak" = "bottomright", "Yakutat" = "bottom",
-           "Southeastern" = "bottomleft")[iarea],
+           "Kodiak" = "bottomright", "West Yakutat" = "bottom",
+           "Southeast Outside" = "bottomleft")[iarea],
          legend = legend_labels,
          title = "Stratum Legend",
          fill = c(RColorBrewer::brewer.pal("Set1", n = n_strata - 1),
