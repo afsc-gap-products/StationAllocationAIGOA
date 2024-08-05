@@ -5,7 +5,8 @@
 ##               Jim Thorson"s VAST wiki example
 ##           (https://github.com/James-Thorson-NOAA/VAST/wiki/Crossvalidation)
 ## Description:  Run single-species VAST models wit and without depth
-##               as a covariate. Run 10-fold Cross Validation for each Model
+##               as a covariate. Run 10-fold Cross Validation for each Model.
+##               Uses R version 4.0.2.
 ###############################################################################
 rm(list = ls())
 
@@ -20,7 +21,7 @@ library(VAST)
 ##   2023 TOR is in this google doc:
 ##   https://docs.google.com/document/d/18CeXcHhHK48hrtkiC6zygXlHj6YVrWEd/edit
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-current_year <- 2023
+current_year <- 2024
 vast_cpp_version <- "VAST_v14_0_1"
 pck_version <- c("VAST" = "3.10.0",
                  "FishStatsUtils" = "2.12.0",
@@ -46,6 +47,7 @@ for (pck in 1:length(pck_version)) {
 
   rm(pck, temp_version)
 }
+
 ##################################################
 ####   Import CPUE dataset, species set spreadsheet
 ##################################################
@@ -195,7 +197,9 @@ for (depth_in_model in c(F, T)) { ## Loop over depth covariate -- start
     }
 
     plot(x = fit,
-         working_dir = paste0(result_dir, "diagnostics/"))
+         working_dir = paste0(result_dir, "diagnostics/"),
+         plot_set = c(3, 6, 7, 16, 17),
+         n_cells = 50000)
 
     ##################################################
     ####   Save original model fit and copy output from the temporary res dir
@@ -257,6 +261,11 @@ for (depth_in_model in c(F, T)) { ## Loop over depth covariate -- start
 
       save(list = c("depth_effect_pred1", "depth_effect_pred2"),
            file = paste0(result_dir, "depth_effect.RData"))
+
+      plot(x = fit,
+           working_dir = paste0(result_dir, "diagnostics/"),
+           plot_set = c(12, 14, 15),
+           n_cells = 50000, check_residuals  = F)
     }
 
     ##################################################
@@ -345,66 +354,66 @@ for (depth_in_model in c(F, T)) { ## Loop over depth covariate -- start
     ##################################################
     #### Prediction Grid: df of the grid to simulate data onto
     ##################################################
-    grid_df <- data.frame()
-    for (itime in sort(x = unique(x = temp_df$Year))) {
-      grid_df <-
-        rbind(grid_df,
-              data.frame(
-                Species = ispp,
-                Year = rep(itime, nrow(x = goa_interpolation_grid)),
-                Catch_KG = mean(temp_df$Catch_KG),
-                AreaSwept_km2 = goa_interpolation_grid$Area_km2,
-                Lat = goa_interpolation_grid$Lat,
-                Lon = goa_interpolation_grid$Lon,
-                LOG10_DEPTH_M_CEN = goa_interpolation_grid$LOG10_DEPTH_M_CEN,
-                stringsAsFactors = T)
-        )
-    }
+    # grid_df <- data.frame()
+    # for (itime in sort(x = unique(x = temp_df$Year))) {
+    #   grid_df <-
+    #     rbind(grid_df,
+    #           data.frame(
+    #             Species = ispp,
+    #             Year = rep(itime, nrow(x = goa_interpolation_grid)),
+    #             Catch_KG = mean(temp_df$Catch_KG),
+    #             AreaSwept_km2 = goa_interpolation_grid$Area_km2,
+    #             Lat = goa_interpolation_grid$Lat,
+    #             Lon = goa_interpolation_grid$Lon,
+    #             LOG10_DEPTH_M_CEN = goa_interpolation_grid$LOG10_DEPTH_M_CEN,
+    #             stringsAsFactors = T)
+    #     )
+    # }
 
     ###################################################
     ## Add New Points: set catch to NAs?
     ###################################################
-    data_geostat_with_grid <- rbind(temp_df[, names(x = grid_df)],
-                                    grid_df)
+    # data_geostat_with_grid <- rbind(temp_df[, names(x = grid_df)],
+    #                                 grid_df)
 
     ##################################################
     ####   Fit the model and save output
     ##################################################
-    pred_TF <- rep(1, nrow(x = data_geostat_with_grid))
-    pred_TF[1:nrow(x = temp_df)] <- 0
-
-    vast_arguments$Lat_i <- data_geostat_with_grid[, "Lat"]
-    vast_arguments$Lon_i <- data_geostat_with_grid[, "Lon"]
-    vast_arguments$t_i <- data_geostat_with_grid[, "Year"]
-    vast_arguments$a_i <- data_geostat_with_grid[, "AreaSwept_km2"]
-    vast_arguments$b_i <- data_geostat_with_grid[, "Catch_KG"]
-    vast_arguments$c_i <- rep(x = 0, nrow(x = data_geostat_with_grid))
-    vast_arguments$PredTF_i <- pred_TF
+    # pred_TF <- rep(1, nrow(x = data_geostat_with_grid))
+    # pred_TF[1:nrow(x = temp_df)] <- 0
+    #
+    # vast_arguments$Lat_i <- data_geostat_with_grid[, "Lat"]
+    # vast_arguments$Lon_i <- data_geostat_with_grid[, "Lon"]
+    # vast_arguments$t_i <- data_geostat_with_grid[, "Year"]
+    # vast_arguments$a_i <- data_geostat_with_grid[, "AreaSwept_km2"]
+    # vast_arguments$b_i <- data_geostat_with_grid[, "Catch_KG"]
+    # vast_arguments$c_i <- rep(x = 0, nrow(x = data_geostat_with_grid))
+    # vast_arguments$PredTF_i <- pred_TF
 
     ## Fit CV run and save model fit
-    vast_arguments$settings$bias.correct <- TRUE
-    fit_sim <- do.call(what = FishStatsUtils::fit_model, args = vast_arguments)
-    saveRDS(object = "fit_sim",
-            file = paste0(result_dir, "/fit_sim.RDS"))
+    # vast_arguments$settings$bias.correct <- TRUE
+    # fit_sim <- do.call(what = FishStatsUtils::fit_model, args = vast_arguments)
+    # saveRDS(object = "fit_sim",
+    #         file = paste0(result_dir, "/fit_sim.RDS"))
 
     ##################################################
     ####   Simulate 1000 iterations of data
     ##################################################
-    sim_data <- array(data = NA, dim = c(n_g, n_t, 1000))
-
-    for (isim in 1:1000) { ## Loop over replicates -- start
-      Sim1 <- FishStatsUtils::simulate_data(fit = fit_sim,
-                                            type = 1,
-                                            random_seed = isim)
-      sim_data[, , isim] <- matrix(data = Sim1$b_i[pred_TF == 1] * 0.001,
-                                   nrow = n_g,
-                                   ncol = n_t)
-      if(isim%%100 == 0) print(paste("Done with", ispp, "Iteration", isim))
-    } ## Loop over replicates -- end
-
-    ## Save simulated data
-    saveRDS(object = sim_data,
-            file = paste0(result_dir, "/simulated_data.RDS"))
+    # sim_data <- array(data = NA, dim = c(n_g, n_t, 1000))
+    #
+    # for (isim in 1:1000) { ## Loop over replicates -- start
+    #   Sim1 <- FishStatsUtils::simulate_data(fit = fit_sim,
+    #                                         type = 1,
+    #                                         random_seed = isim)
+    #   sim_data[, , isim] <- matrix(data = Sim1$b_i[pred_TF == 1] * 0.001,
+    #                                nrow = n_g,
+    #                                ncol = n_t)
+    #   if(isim%%100 == 0) print(paste("Done with", ispp, "Iteration", isim))
+    # } ## Loop over replicates -- end
+    #
+    # ## Save simulated data
+    # saveRDS(object = sim_data,
+    #         file = paste0(result_dir, "/simulated_data.RDS"))
 
   } ## Loop over species -- start
 } ## Loop over depth covariate -- end
