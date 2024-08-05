@@ -3,14 +3,14 @@
 ## Author:      Zack Oyafuso (zack.oyafuso@noaa.gov)
 ## Description: Assign bathymetry value from the EFH data lyaer to each grid in
 ##              the Gulf of Alaska grid.
+##              Uses R version 4.3.x to incorporate updates from akgfmaps
 ###############################################################################
 rm(list = ls())
 
 ##################################################
 ####   Import packages
 ##################################################
-library(sf); library(stars)
-library(akgfmaps)
+library(sf); library(stars); library(akgfmaps)
 
 ##################################################
 ####   CRSs used
@@ -24,19 +24,11 @@ goa_bathy <-
   terra::rast(x = "//AKC0SS-n086/AKC_PubliC/Dropbox/Zimm/GEBCO/GOA/goa_bathy")
 
 ##################################################
-####   Import Current Strata (current_survey_strata)
-####   Import spatial domain outline mask (current_survey_mask)
 ####   Import Extrapolation grid (goa_grid)
-####   Import CPUE data (data)
-####   Untrawlable areas (goa_grid_nountrawl)
+####   Import NMFS areas (nmfs)
+####   Import CPUE data (goa_data_geostat)
+####   Import stratum boundaries (stratum_boundaries)
 ##################################################
-
-goa_base_layers <- akgfmaps::get_base_layers(select.region = "goa",
-                                             set.crs = "EPSG:3338")
-goa_strata <-
-  terra::vect(x = "data/GOA/shapefiles_akgfmaps/goa_strata_2025.gpkg")
-
-
 
 goa_grid <-
   read.csv(file = "data/GOA/extrapolation_grid/GOAThorsonGrid_Less700m.csv")
@@ -44,7 +36,21 @@ goa_grid <- goa_grid[, c("Id", "Shape_Area", "Longitude", "Latitude")]
 goa_grid$Shape_Area <- goa_grid$Shape_Area / 1000 / 1000 #Convert to km2
 names(x = goa_grid) <- c( "Id", "Area_km2", "Lon", "Lat")
 
+nmfs <-
+  terra::vect(x = akgfmaps::get_nmfs_areas(set.crs = terra::crs(x = goa_bathy)))
+nmfs <-
+  nmfs[nmfs$REP_AREA %in% c(519, 610, 620, 630, 640, 650, 659), "REP_AREA"]
+
 goa_data_geostat = read.csv(file = "data/GOA/vast_data/goa_data_geostat.csv")
+
+stratum_boundaries <- read.csv(file = "data/GOA/strata_boundaries/depth_modifications_2025.csv")
+stratum_boundaries <- rbind(stratum_boundaries,
+                            data.frame(NMFS_AREA = c("Southeast Inside",
+                                                     "NMFS519"),
+                                       REP_AREA = c(659, 519),
+                                       STRATUM = c(52, 16),
+                                       DEPTH_MIN_M = 1,
+                                       DEPTH_MAX_M = 1000))
 
 ##################################################
 ####   Transform extrapolation grid to aea, extract bathymetry values onto grid
@@ -59,10 +65,9 @@ grid_shape_aea$Depth_m <-
   terra::extract(x = goa_bathy, y = grid_shape_aea)$GOA_bathy
 
 ##################################################
-####   Remove cells not already in the current GOA strata
+####   Classify cells to NMFS reporting areas
 ##################################################
-grid_shape_aea <- terra::intersect(x = grid_shape_aea,
-                                   y = goa_strata[, "STRATUM"])
+grid_shape_aea <- terra::intersect(x = grid_shape_aea, y = nmfs)
 
 ##################################################
 ####   Remove cells with depths outside the observed range to the range
@@ -71,6 +76,23 @@ grid_shape_aea <- grid_shape_aea[
   (grid_shape_aea$Depth_m >= min(x = goa_data_geostat$Depth_m) &
      grid_shape_aea$Depth_m <= 700),
 ]
+
+##################################################
+#### Reclassify the stratum of the interpolation cells based on extracted depth
+##################################################
+grid_shape_aea$STRATUM <- NA
+
+for (inmfs in nmfs$REP_AREA) {
+  temp_boundaries <- subset(x = stratum_boundaries,
+                            subset = REP_AREA == inmfs)
+  for (istratum in 1:nrow(x = temp_boundaries)) {
+    grid_shape_aea[
+      grid_shape_aea$REP_AREA == inmfs &
+        round(x = grid_shape_aea$Depth_m) >= temp_boundaries$DEPTH_MIN_M[istratum] &
+        round(x = grid_shape_aea$Depth_m) <= temp_boundaries$DEPTH_MAX_M[istratum]
+      ]$STRATUM <- temp_boundaries$STRATUM[istratum]
+  }
+}
 
 ##################################################
 ####   scale grid bathymetry values to standard normal, using the mean and sd
