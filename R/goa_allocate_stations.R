@@ -33,28 +33,56 @@
 #' }
 #'
 
+# n = 550
+# min_n_per_stratum = 4
+# species = c(
+#   "arrowtooth flounder", ## Atherestes stomias
+#   "Pacific cod", ## Gadus macrocephalus
+#   "walleye pollock", ## Gadus chalcogrammus
+#   # "rex sole", ## Glyptocephalus zachirus
+#   # "flathead sole", ## Hippoglossoides elassodon
+#   # "Pacific halibut", ## Hippoglossus stenolepis
+#   # "southern rock sole", ## Lepidopsetta bilineata
+#   # "northern rock sole", ## Lepidopsetta polyxystra
+#   "Pacific ocean perch", ## Sebastes alutus
+#   # "silvergray rockfish", ## Sebastes brevispinis
+#   # "northern rockfish", ## Sebastes polyspinis
+#   # "dusky rockfish", ## Sebastes variabilis
+#   # "REBS rockfish", ## Sebastes aleutianus and S. melanostictus
+#   # "Dover sole", ## Microstomus pacificus
+#   "shortspine thornyhead" ## Sebastolobus alascanus
+# )
+# max_iter = 5000
+# trawl = c("Y", "N", "UNK")[c(1, 3)]
+# survey_year = 2025
+#
+# planning_years <- c(1996, 1999, seq(from = 2003, to = 2023, by = 2))
+# # planning_years <- 2023
+
 goa_allocate_stations <-
   function(n = 550,
            min_n_per_stratum = 4,
-           species = c("arrowtooth flounder", ## Atherestes stomias
-                       "Pacific cod", ## Gadus macrocephalus
-                       "walleye pollock", ## Gadus chalcogrammus
-                       "rex sole", ## Glyptocephalus zachirus
-                       "flathead sole", ## Hippoglossoides elassodon
-                       "Pacific halibut", ## Hippoglossus stenolepis
-                       "southern rock sole", ## Lepidopsetta bilineata
-                       "northern rock sole", ## Lepidopsetta polyxystra
-                       "Pacific ocean perch", ## Sebastes alutus
-                       "silvergray rockfish", ## Sebastes brevispinis
-                       "northern rockfish", ## Sebastes polyspinis
-                       "dusky rockfish", ## Sebastes variabilis
-                       "BS and RE rockfishes", ## Sebastes aleutianus and S. melanostictus
-                       "Dover sole", ## Microstomus pacificus
-                       "shortspine thornyhead" ## Sebastolobus alascanus)
+           species = c(
+             "arrowtooth flounder", ## Atherestes stomias
+             "Pacific cod", ## Gadus macrocephalus
+             "walleye pollock", ## Gadus chalcogrammus
+             "rex sole", ## Glyptocephalus zachirus
+             "flathead sole", ## Hippoglossoides elassodon
+             "Pacific halibut", ## Hippoglossus stenolepis
+             "southern rock sole", ## Lepidopsetta bilineata
+             "northern rock sole", ## Lepidopsetta polyxystra
+             "Pacific ocean perch", ## Sebastes alutus
+             "silvergray rockfish", ## Sebastes brevispinis
+             "northern rockfish", ## Sebastes polyspinis
+             "dusky rockfish", ## Sebastes variabilis
+             "REBS rockfish", ## Sebastes aleutianus and S. melanostictus
+             "Dover sole", ## Microstomus pacificus
+             "shortspine thornyhead" ## Sebastolobus alascanus
            ),
            max_iter = 5000,
            trawl = c("Y", "N", "UNK")[c(1, 3)],
-           year = 2025){
+           planning_years = c(1996, 1999, seq(from = 2003, to = 2023, by = 2)),
+           survey_year = 2025){
 
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     ##   Check that species list matches current species list
@@ -72,28 +100,34 @@ goa_allocate_stations <-
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     dens <- StationAllocationAIGOA::D_gct
     spp_idx <- match(species, dimnames(dens)[[2]] )
-    ns_opt <- length(spp_idx)
-    n_cells <- dim(dens)[1]
-    n_years <- dim(dens)[3]
+    ns_opt <- length(x = spp_idx)
+    n_cells <- dim(x = dens)[1]
+    n_years <- ifelse(test = length(x = planning_years) == 1,
+                      yes = 1, no = dim(x = dens)[3])
 
-    strata_names <- with(StationAllocationAIGOA::depth_mods_2023,
-                         stratum[used])
-    NMFS_area <- with(StationAllocationAIGOA::depth_mods_2023,
-                      manage_area[used])
+    ## update dens with species and year filters
+    dens <- array(data = dens[, spp_idx, paste(planning_years)],
+                  dim = c(n_cells, ns_opt, n_years))
 
-    goa_stations_2025 <- StationAllocationAIGOA::goa_stations_2025
+    stratum_names <- with(StationAllocationAIGOA::goa_stratum_boundaries,
+                         as.character(x = STRATUM[USED]))
+    NMFS_area <- with(StationAllocationAIGOA::goa_stratum_boundaries,
+                      NMFS_AREA[USED])
+
+    goa_stations <- subset(x = StationAllocationAIGOA::goa_stations,
+                           subset = STRATUM %in% stratum_names)
 
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     ##   Single species CV: lower CV bounds for MS allocation
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    srs_var <- apply(X = dens[, spp_idx, ],
+    srs_var <- apply(X = dens,
                      MARGIN = 2,
                      FUN = function(x) var(as.vector(x)))
     srs_var <- sweep(x = as.matrix(srs_var),
                      MARGIN = 1,
                      STATS = (1 - n / n_cells) / n,
                      FUN = "*")
-    srs_mean <- apply(X = dens[, spp_idx, ],
+    srs_mean <- apply(X = dens,
                       MARGIN = 2,
                       FUN = function(x) mean(as.vector(x)))
     srs_cv <- sqrt(srs_var) / srs_mean
@@ -101,26 +135,26 @@ goa_allocate_stations <-
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     ##   Single species CV: lower CV bounds for MS allocation
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    strs_sd <- apply(X = dens[, spp_idx, ],
+    strs_sd <- apply(X = dens,
                      MARGIN = 2,
                      FUN = function(x)
                        sapply(X = split(x = x,
                                         f = optim_df$STRATUM),
                               FUN = function(xx)
-                                stats::sd(x = as.vector(xx))))[strata_names,]
-    strs_mean <- apply(X = dens[, spp_idx, ],
+                                stats::sd(x = as.vector(xx))))[stratum_names,]
+    strs_mean <- apply(X = dens,
                        MARGIN = 2,
                        FUN = function(x)
                          sapply(X = split(x = x,
                                           f = optim_df$STRATUM),
                                 FUN = function(xx)
-                                  stats::mean(x = as.vector(xx))))[strata_names,]
+                                  mean(x = as.vector(xx))))[stratum_names,]
 
     strs_stats <- cbind(data.frame(
-      STRATO = 1:length(strata_names),
-      N = as.numeric(table(optim_df$STRATUM)[strata_names]),
+      STRATO = 1:length(x = stratum_names),
+      N = as.numeric(x = table(optim_df$STRATUM)[stratum_names]),
       COST = 1, CENS = 0, DOM1 = 1,
-      X1 = 1:length(strata_names)
+      X1 = 1:length(stratum_names)
     ),
     matrix(data = as.vector(strs_mean), ncol = ns_opt,
            dimnames = list(NULL, paste0("M", 1:ns_opt))),
@@ -129,9 +163,9 @@ goa_allocate_stations <-
 
     ## Data objects for ss allocations
     ss_cv <- data.frame()
-    ss_allocations <- matrix(nrow = length(strata_names),
+    ss_allocations <- matrix(nrow = length(x = stratum_names),
                              ncol = ns_opt,
-                             dimnames = list(strata_names, species))
+                             dimnames = list(stratum_names, species))
 
     for (ispp in 1:ns_opt) { ## Loop over species -- start
 
@@ -151,7 +185,7 @@ goa_allocate_stations <-
         stratif = temp_stratif,
         realAllocation = T,
         printa = T,
-        minnumstrat = 4)
+        minnumstrat = min_n_per_stratum)
       temp_n <- as.integer(sum(temp_bethel))
       temp_cv <- as.numeric(attributes(temp_bethel)$outcv[, "PLANNED CV "])
 
@@ -252,39 +286,49 @@ goa_allocate_stations <-
                      "argument in goa_allocate_stations()."))
 
     ## Record Multispcies allocation and cvs
-    ms_cv <- as.numeric(updated_cv_constraint)
+    ms_cv <- round(x = as.numeric(x = updated_cv_constraint), digits = 3)
     ms_allocation <- as.integer(ceiling(temp_bethel))
     names(ms_allocation) <- rownames(strs_sd)
-    ms_allocation <- ms_allocation[strata_names]
+    ms_allocation <- ms_allocation[stratum_names]
 
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     ## Randomly drawn stations
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     drawn_stations <- c()
 
-    for (i in 1:length(ms_allocation)) { ## Loop over strata -- start
+    for (i in 1:length(x = ms_allocation)) { ## Loop over strata -- start
 
       #Set seed
-      set.seed(year)
-      istratum <- names(ms_allocation)[i]
+      set.seed(survey_year)
+      istratum <- names(x = ms_allocation)[i]
 
       ## available stations are those that are trawlable and > 5 km^2
-      available_stations <- with(goa_stations_2025,
+      available_stations <- with(goa_stations,
                                  which(STRATUM == istratum &
                                          TRAWLABLE %in% trawl &
-                                         AREA_KM2 >= 5.00))
+                                         AREA_KM2 >= 5))
       temp_samples <- sample(x = available_stations,
                              size = ms_allocation[i],
-                             prob = goa_stations_2025$AREA_KM2[available_stations],
+                             prob = goa_stations$AREA_KM2[available_stations],
                              replace = FALSE)
       drawn_stations <- c(drawn_stations, temp_samples)
     } ## Loop over strata -- end
 
-    drawn_stations <- goa_stations_2025[drawn_stations, ]
+    drawn_stations <- goa_stations[drawn_stations, ]
 
-    return(list(ms_allocation = data.frame(stratum = strata_names,
-                                           nmfs_area = NMFS_area,
-                                           ms_allocation = ms_allocation,
-                                           row.names = NULL),
-                drawn_stations = data.frame(drawn_stations, row.names = NULL)))
-    }
+    return(
+      list(
+        expected_cv = data.frame(
+          species = species,
+          expected_srs_cv = round(x = srs_cv, digits = 3),
+          expected_ms_cv = ms_cv,
+          expected_ss_cv = round(x = ss_cv$ss_cv, digits = 3)),
+        ss_allocation = ss_allocations,
+        ms_allocation = data.frame(stratum = stratum_names,
+                                   nmfs_area = NMFS_area,
+                                   ms_allocation = ms_allocation,
+                                   row.names = NULL),
+        drawn_stations = data.frame(drawn_stations, row.names = NULL)
+      )
+    )
+  }
