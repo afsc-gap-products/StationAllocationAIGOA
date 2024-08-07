@@ -75,8 +75,10 @@ for (ispp in spp_names){ ## Loop through species -- start
 ####   Synthesize Cross Validation Results
 ##################################################
 pred_jnll <- spread(data = aggregate(pred_jnll ~ depth_in_model + spp_name,
-                                     FUN = function(x) round(sum(x, na.rm = T)),
-                                     data = cross_val_results),
+                                     FUN = mean,
+                                     na.rm = T,
+                                     data = cross_val_results,
+                                     subset = max_gradient < 0.1),
                     key = depth_in_model,
                     value = pred_jnll)
 
