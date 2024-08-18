@@ -4,22 +4,22 @@ output_dir <- "//AKC0SS-n086/AKC_PubliC/Dropbox/Zimm/GEBCO/GOA/"
 
 library(terra)
 ARDEM <- terra::vect(x = paste0(output_dir,
-                                "BTS_test_depths_ARDEM/",
-                                "BTS_test_depths_ARDEM.shp"))
+                                "BTS_test_depths_ARDEM3/",
+                                "June26_BTS_depths_ARDEM3_NO_NULLS.shp"))
 ARDEM$RASTERVALU <- ARDEM$RASTERVALU * -1
 
 GEBCO <- terra::vect(x = paste0(output_dir,
-                                "BTS_test_depths_GEBCO/",
-                                "BTS_test_depths_GEBCO.shp"))
+                                "BTS_test_depths_GEBCO3/",
+                                "June26_BTS_depths_GEBCO3.shp"))
 GEBCO$RASTERVALU <- GEBCO$RASTERVALU * -1
 
 Mix <- terra::vect(x = paste0(output_dir,
                               "BTS_test_depths/",
-                              "BTS_test_depths_extract_goa_bathy.shp"))
+                              "June26_BTS_depths_extract_goa_bathy.shp"))
 
 bathys <- merge(x = subset(x = as.data.frame(ARDEM),
-                           subset = RASTERVALU != 9999,
-                           select = -Diffs),
+                           select = c("hauljoin", "c_start_lo", "c_start_la",
+                                      "bottom_dep", "wire_lengt", "RASTERVALU")),
                 y = subset(x = as.data.frame(GEBCO),
                            select = c("hauljoin", "RASTERVALU")) ,
                 all = TRUE,
@@ -30,17 +30,17 @@ bathys <- merge(x = bathys,
                            select = c("hauljoin", "RASTERVALU")),
                 by = "hauljoin")
 
-names(x = bathys) <- c("hauljoin", "obs_depth",
-                       "lon", "lat",
-                       "ARDEM", "GEBCO", "Mix")
+names(x = bathys) <- c("hauljoin", "lon_dd", "lat_dd",
+                       "bottom_depth_m", "wire_length_m",
+                       "ARDEM_depth_m", "GEBCO_depth_m", "Mix_depth_m")
 
-error <- sweep(x = bathys[, c("ARDEM", "GEBCO", "Mix")],
+error <- sweep(x = bathys[, c("ARDEM_depth_m", "GEBCO_depth_m", "Mix_depth_m")],
                MARGIN = 1,
-               STATS = bathys$obs_depth,
+               STATS = bathys$bottom_depth_m,
                FUN = "-")
 rel_error <- 100 * round(sweep(x = error,
                                MARGIN = 1,
-                               STATS = bathys$obs_depth,
+                               STATS = bathys$bottom_depth_m,
                                FUN = "/"), 3)
 rmse <- sqrt(apply(X = error^2,
                    MARGIN = 2,
@@ -52,12 +52,12 @@ mae <- apply(X = abs(error),
              FUN = mean,
              na.rm = TRUE)
 
-png(filename = paste0("analysis_scripts/GOA/goa_restratification_2023/",
-                      "bathymetry_analysis/FigXX_results.png"),
+png(filename = paste0("analysis_scripts/GOA/goa_restratification_2025/",
+                      "bathymetry_analysis/FigXX_results_8_12_2024.png"),
     width = 190, height = 190, units = "mm", res = 500, family = "serif")
 
 par(mfrow = c(2, 2), mar = c(4, 5, 2, 1), oma = c(0, 0, 0, 0))
-hist(bathys$obs_depth, ann = F, col = "darkgrey", nclass = 25, las = 1)
+hist(bathys$bottom_depth_m, ann = F, col = "darkgrey", nclass = 25, las = 1)
 mtext(side = 1, "Observed Depth (m)", font = 2, line = 2.2)
 mtext(side = 2, "Frequency", line = 3, font = 2)
 mtext(side = 3,
@@ -65,34 +65,39 @@ mtext(side = 3,
       line = 0.5, font = 2)
 legend(x = 575, y = 750,
        legend = c(
-         paste0("Min: ", min(x = bathys$obs_depth, na.rm = T), " m"),
-         paste0("Median: ", median(x = bathys$obs_depth, na.rm = T), " m"),
-         paste0("Mean: ", round(mean(x = bathys$obs_depth, na.rm = T)), " m"),
-         paste0("Max: ", max(x = bathys$obs_depth, na.rm = T), " m")),
+         paste0("Min: ", min(x = bathys$bottom_depth_m, na.rm = T), " m"),
+         paste0("Median: ", median(x = bathys$bottom_depth_m, na.rm = T), " m"),
+         paste0("Mean: ", round(mean(x = bathys$bottom_depth_m, na.rm = T)), " m"),
+         paste0("Max: ", max(x = bathys$bottom_depth_m, na.rm = T), " m")),
        bty = "n")
 box()
 
 for (isource in c("Mix", "GEBCO", "ARDEM")) {
-  plot(bathys[, isource] ~ bathys$obs_depth,
+  plot(bathys[, paste0(isource, "_depth_m")] ~ bathys$bottom_depth_m,
        xlim = c(0, 1000), ylim = c(0, 1000),
        pch = 16, asp = 1, type = "n", ann = F, las = 1)
 
-  points(get(isource) ~ obs_depth,
+  points(get(paste0(isource, "_depth_m")) ~ bottom_depth_m,
          data = bathys,
          cex = 0.5)
 
   mtext(side = 3,
-        text = paste(c("Mix" = "B)", "GEBCO" = "C)", "ARDEM" = "D)")[isource], isource),
+        text = paste(c("Mix" = "B)", "GEBCO" = "C)", "ARDEM" = "D)")[isource],
+                     isource),
         line = 0.5, font = 2)
   legend("bottomright",
-         legend = c(paste0("Mean PB: ", round(x = mean(error[, isource],
-                                                           na.rm = TRUE),
-                                                  digits = 1)),
-                    paste0("Median PB: ", round(x = median(error[, isource],
-                                                               na.rm = TRUE),
-                                                    digits = 1)),
-                    paste0("MAE: ", round(mae[isource], 1)),
-                    paste0("RMSE: ", round(rmse[isource], 1))),
+         legend = c(paste0("Mean PB: ",
+                           round(x = mean(error[, paste0(isource, "_depth_m")],
+                                          na.rm = TRUE),
+                                 digits = 1), '%'),
+                    paste0("Median PB: ",
+                           round(x = median(error[, paste0(isource, "_depth_m")],
+                                            na.rm = TRUE),
+                                 digits = 1), '%'),
+                    paste0("MAE: ",
+                           round(mae[paste0(isource, "_depth_m")], 1), " m"),
+                    paste0("RMSE: ",
+                           round(rmse[paste0(isource, "_depth_m")], 1), " m")),
          bty = "n")
 
   mtext(side = 1, "Observed Depth (m)", font = 2, line = 2.25)
@@ -101,3 +106,5 @@ for (isource in c("Mix", "GEBCO", "ARDEM")) {
 }
 
 dev.off()
+
+summary(error[bathys$Mix_depth_m != bathys$GEBCO_depth_m, ])
