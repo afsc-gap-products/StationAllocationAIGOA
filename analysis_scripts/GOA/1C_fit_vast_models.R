@@ -21,7 +21,7 @@ library(VAST)
 ##   2023 TOR is in this google doc:
 ##   https://docs.google.com/document/d/18CeXcHhHK48hrtkiC6zygXlHj6YVrWEd/edit
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-current_year <- 2024
+current_year <- 2023
 vast_cpp_version <- "VAST_v14_0_1"
 pck_version <- c("VAST" = "3.10.0",
                  "FishStatsUtils" = "2.12.0",
@@ -51,7 +51,8 @@ for (pck in 1:length(pck_version)) {
 ##################################################
 ####   Import CPUE dataset, species set spreadsheet
 ##################################################
-goa_data_geostat <- read.csv(file = "data/GOA/vast_data/goa_data_geostat.csv" )
+goa_data_geostat <- 
+  read.csv(file = "data/GOA/vast_data/goa_data_geostat.csv" )
 goa_interpolation_grid <-
   read.csv(file = "data/GOA/vast_data/goa_interpolation_grid.csv")
 
@@ -209,10 +210,7 @@ for (depth_in_model in c(F, T)) { ## Loop over depth covariate -- start
 
     ## Plot depth effects
     if (depth_in_model) {
-
-      # Must add data-frames to global environment (hope to fix in future)
-      covariate_data_full = fit$effects$covariate_data_full
-      catchability_data_full = fit$effects$catchability_data_full
+	
       depth_effect_pred1 <-
         VAST::Effect.fit_model( fit,
                                 focal.predictors = c("LOG10_DEPTH_M"),
@@ -228,7 +226,7 @@ for (depth_in_model in c(F, T)) { ## Loop over depth covariate -- start
                                 transformation = list(link=identity,
                                                       inverse=identity) )
 
-      ## Save a reduced form of the predicted effects
+      ## Save a reduced form of the predicted effects on both model components
       depth_effect_pred1 <-
         with(depth_effect_pred1,
              data.frame(x = x, pred = fit, lower = lower, upper = upper))
@@ -318,9 +316,7 @@ for (depth_in_model in c(F, T)) { ## Loop over depth covariate -- start
                             "/crossval_fit_performance.RDS"))
 
       if (depth_in_model) {
-        # Must add data-frames to global environment (hope to fix in future)
-        covariate_data_full = fit$effects$covariate_data_full
-        catchability_data_full = fit$effects$catchability_data_full
+
         depth_effect_pred1 <-
           VAST::Effect.fit_model(fit,
                                  focal.predictors = c("LOG10_DEPTH_M"),

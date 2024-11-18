@@ -13,7 +13,7 @@ library(gapindex)
 chl <- gapindex::get_connected(check_access = FALSE)
 
 ##################################################
-#### Set up haul-level CPUE survey
+#### Set up haul-level CPUE survey, update with most recent survey year
 ##################################################
 spp_set <- read.csv(file = "data/GOA/species_list/species_list.csv")
 planning_years <- c(1996, 1999, seq(from = 2003, to = 2023, by = 2))

@@ -2,7 +2,7 @@
 ## Project:     VAST covariates across goa grid
 ## Author:      Zack Oyafuso (zack.oyafuso@noaa.gov)
 ## Description: Assign bathymetry value from the EFH data lyaer to each grid in
-##              the Gulf of Alaska grid.
+##              the Gulf of Alaska interpolation grid.
 ##              Uses R version 4.3.x to incorporate updates from akgfmaps
 ###############################################################################
 rm(list = ls())
@@ -39,18 +39,12 @@ names(x = goa_grid) <- c( "Id", "Area_km2", "Lon", "Lat")
 nmfs <-
   terra::vect(x = akgfmaps::get_nmfs_areas(set.crs = terra::crs(x = goa_bathy)))
 nmfs <-
-  nmfs[nmfs$REP_AREA %in% c(519, 610, 620, 630, 640, 650, 659), "REP_AREA"]
+  nmfs[nmfs$REP_AREA %in% c(610, 620, 630, 640, 650), "REP_AREA"]
 
 goa_data_geostat = read.csv(file = "data/GOA/vast_data/goa_data_geostat.csv")
 
-stratum_boundaries <- read.csv(file = "data/GOA/strata_boundaries/depth_modifications_2025.csv")
-stratum_boundaries <- rbind(stratum_boundaries,
-                            data.frame(NMFS_AREA = c("Southeast Inside",
-                                                     "NMFS519"),
-                                       REP_AREA = c(659, 519),
-                                       STRATUM = c(52, 16),
-                                       DEPTH_MIN_M = 1,
-                                       DEPTH_MAX_M = 1000))
+stratum_boundaries <-
+  read.csv(file = "data/GOA/strata_boundaries/depth_modifications_2025.csv")
 
 ##################################################
 ####   Transform extrapolation grid to aea, extract bathymetry values onto grid
@@ -82,21 +76,29 @@ grid_shape_aea <- grid_shape_aea[
 ##################################################
 grid_shape_aea$STRATUM <- NA
 
-for (inmfs in nmfs$REP_AREA) {
+for (inmfs in nmfs$REP_AREA) { ## Loop over NMFS Area -- start
+
+  ## Subset strata within the NMFS Area (inmfs)
   temp_boundaries <- subset(x = stratum_boundaries,
                             subset = REP_AREA == inmfs)
-  for (istratum in 1:nrow(x = temp_boundaries)) {
+
+  ## Using the depth stratum definitions, reclassify the grid cells within
+  ## the NMFS area (inmfs) to the correct stratum.
+  for (istratum in 1:nrow(x = temp_boundaries)) { ## Loop over strata -- start
     grid_shape_aea[
       grid_shape_aea$REP_AREA == inmfs &
-        round(x = grid_shape_aea$Depth_m) >= temp_boundaries$DEPTH_MIN_M[istratum] &
-        round(x = grid_shape_aea$Depth_m) <= temp_boundaries$DEPTH_MAX_M[istratum]
+        round(x = grid_shape_aea$Depth_m) >=
+		temp_boundaries$DEPTH_MIN_M[istratum]    &
+        round(x = grid_shape_aea$Depth_m) <=
+		temp_boundaries$DEPTH_MAX_M[istratum]
       ]$STRATUM <- temp_boundaries$STRATUM[istratum]
-  }
-}
+
+  } ## Loop over strata -- end
+} ## Loop over NMFS Area -- end
 
 ##################################################
 ####   scale grid bathymetry values to standard normal, using the mean and sd
-####   of the BTS data
+####   of the BTS data from script 1A_operating_model_data.R
 ##################################################
 BTS_mean <- mean(x = log10(x = goa_data_geostat$Depth_m))
 BTS_sd   <-  sd(x = log10(x = goa_data_geostat$Depth_m))
