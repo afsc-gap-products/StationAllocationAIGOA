@@ -9,15 +9,21 @@
 #' @author Zack Oyafuso \email{zack.oyafuso@@noaa.gov}
 #'
 #' @param n integer.Total number of stations
-#' @param species character vector. See example on github readme
 #' @param min_n_per_stratum integer. Minimum number of stations to assign a
-#'                          stratum
+#'                          stratum.
+#' @param species chracter vector. List of species used to optimize survey
+#'                allocation.
 #' @param max_iter integer. Maximum number of times for bethel algorithm to run
 #'                 to converge to `n`.
-#' @param year integer. The year as an integer is used as a seed for the random
+#' @param planning_years numeric vector. List of survey years used to optimize
+#'                       survey.
+#' @param survey_year integer. The year as an integer is used as a seed for the random
 #'             number generator when drawing random stations.
 #' @param trawl character vector. Options are "Y" for trawlable, "N" for
 #'              untrawlable, or "UNK" for unknown trawlablity.
+#' @param cv_threshold numeric. If species' expected CV < cv_threshold, then
+#'                     set the cv constraint to cv_threshold. See description
+#'                     for more details.
 #'
 #' @return A named list with elements:
 #' 1) ms_allocation: vector, allocation of `n` stations across strata using
@@ -32,32 +38,6 @@
 #' \item{CENTER_LAT, CENTER_LONG}{Latitude and longitude of station centroid}
 #' }
 #'
-
-# n = 550
-# min_n_per_stratum = 4
-# species = c(
-#   "arrowtooth flounder", ## Atherestes stomias
-#   "Pacific cod", ## Gadus macrocephalus
-#   "walleye pollock", ## Gadus chalcogrammus
-#   # "rex sole", ## Glyptocephalus zachirus
-#   # "flathead sole", ## Hippoglossoides elassodon
-#   # "Pacific halibut", ## Hippoglossus stenolepis
-#   # "southern rock sole", ## Lepidopsetta bilineata
-#   # "northern rock sole", ## Lepidopsetta polyxystra
-#   "Pacific ocean perch", ## Sebastes alutus
-#   # "silvergray rockfish", ## Sebastes brevispinis
-#   # "northern rockfish", ## Sebastes polyspinis
-#   # "dusky rockfish", ## Sebastes variabilis
-#   # "REBS rockfish", ## Sebastes aleutianus and S. melanostictus
-#   # "Dover sole", ## Microstomus pacificus
-#   "shortspine thornyhead" ## Sebastolobus alascanus
-# )
-# max_iter = 5000
-# trawl = c("Y", "N", "UNK")[c(1, 3)]
-# survey_year = 2025
-#
-# planning_years <- c(1996, 1999, seq(from = 2003, to = 2023, by = 2))
-# # planning_years <- 2023
 
 goa_allocate_stations <-
   function(n = 550,
@@ -82,6 +62,7 @@ goa_allocate_stations <-
            max_iter = 5000,
            trawl = c("Y", "N", "UNK")[c(1, 3)],
            planning_years = c(1996, 1999, seq(from = 2003, to = 2023, by = 2)),
+           cv_threshold = 0,
            survey_year = 2025){
 
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -94,6 +75,11 @@ goa_allocate_stations <-
                  "in the list of included species. See",
                  "?StationAllocationAIGOA::goa_allocate_stations",
                  "for full species list"))
+
+    if (!all(planning_years %in% dimnames(StationAllocationAIGOA::D_gct)[[3]]))
+      stop(paste("message from StationAllocationAIGOA::goa_allocate_stations:",
+                 "Argument `planning_year` contains years that are not",
+                 "currently in the list of included survey years."))
 
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     ##   Constants
@@ -110,7 +96,7 @@ goa_allocate_stations <-
                   dim = c(n_cells, ns_opt, n_years))
 
     stratum_names <- with(StationAllocationAIGOA::goa_stratum_boundaries,
-                         as.character(x = STRATUM[USED]))
+                          as.character(x = STRATUM[USED]))
     NMFS_area <- with(StationAllocationAIGOA::goa_stratum_boundaries,
                       NMFS_AREA[USED])
 
@@ -266,6 +252,12 @@ goa_allocate_stations <-
       updated_cv_constraint <-
         as.numeric(attributes(temp_bethel)$outcv[, "PLANNED CV "]) * (CV_adj) +
         ss_cv$ss_cv * (1  - CV_adj)
+
+      #### Change
+      updated_cv_constraint <- ifelse(test = updated_cv_constraint < cv_threshold,
+                                      yes = cv_threshold,
+                                      no = updated_cv_constraint)
+      ####
 
       error_df[, paste0("CV", 1:ns_opt)] <- as.numeric(updated_cv_constraint)
 
