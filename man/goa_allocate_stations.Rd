@@ -14,6 +14,7 @@ goa_allocate_stations(
   max_iter = 5000,
   trawl = c("Y", "N", "UNK")[c(1, 3)],
   planning_years = c(1996, 1999, seq(from = 2003, to = 2023, by = 2)),
+  cv_threshold = 0,
   survey_year = 2025
 )
 }
@@ -21,9 +22,10 @@ goa_allocate_stations(
 \item{n}{integer.Total number of stations}
 
 \item{min_n_per_stratum}{integer. Minimum number of stations to assign a
-stratum}
+stratum.}
 
-\item{species}{character vector. See example on github readme}
+\item{species}{chracter vector. List of species used to optimize survey
+allocation.}
 
 \item{max_iter}{integer. Maximum number of times for bethel algorithm to run
 to converge to `n`.}
@@ -31,7 +33,14 @@ to converge to `n`.}
 \item{trawl}{character vector. Options are "Y" for trawlable, "N" for
 untrawlable, or "UNK" for unknown trawlablity.}
 
-\item{year}{integer. The year as an integer is used as a seed for the random
+\item{planning_years}{numeric vector. List of survey years used to optimize
+survey.}
+
+\item{cv_threshold}{numeric. If species' expected CV < cv_threshold, then
+set the cv constraint to cv_threshold. See description
+for more details.}
+
+\item{survey_year}{integer. The year as an integer is used as a seed for the random
 number generator when drawing random stations.}
 }
 \value{
