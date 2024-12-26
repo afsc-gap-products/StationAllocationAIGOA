@@ -43,6 +43,8 @@ goa_stations_mixed_trawl <- sf::st_transform(x = goa_stations_mixed_trawl,
 goa_base <- akgfmaps::get_base_layers(select.region = "goa",
                                       set.crs = "EPSG:3338")
 
+output_dir <- "G:/GOA/GOA 2025/Station Allocation/"
+
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##  Calculate a 520 station allocation
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -132,8 +134,7 @@ table(stn_allocation$STRATUM, stn_allocation$VESSEL)
 ##   Plot map of drawn stations
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-pdf(file = paste0("G:/GOA/GOA 2025/Station Allocation/",
-                  "goa_2025_station_allocation_520_map.pdf"),
+pdf(file = paste0(output_dir, "goa_2025_station_allocation_520_map.pdf"),
     width = 8, height = 6, onefile = TRUE)
 for (iarea in c(610, 620, 630, 640, 650)) { ## Loop over area -- start
 
@@ -192,16 +193,14 @@ stn_centroids_ll <- terra::project(x = stn_centroids_aea, "EPSG:4326")
 
 writeVector(
   x = stn_centroids_aea,
-  file = paste0("G:/GOA/GOA 2025/Station Allocation/",
-                "goa_2025_station_allocation_520_aea.gpkg"),
-  overwrite = file.exists(paste0("G:/GOA/GOA 2025/Station Allocation/",
+  file = paste0(output_dir, "goa_2025_station_allocation_520_aea.gpkg"),
+  overwrite = file.exists(paste0(output_dir,
                                  "goa_2025_station_allocation_520_aea.gpkg"))
 )
 writeVector(
   x = stn_centroids_ll,
-  file = paste0("G:/GOA/GOA 2025/Station Allocation/",
-                "goa_2025_station_allocation_520_ll.gpkg"),
-  overwrite = file.exists(paste0("G:/GOA/GOA 2025/Station Allocation/",
+  file = paste0(output_dir, "goa_2025_station_allocation_520_ll.gpkg"),
+  overwrite = file.exists(paste0(output_dir,
                                  "goa_2025_station_allocation_520_ll.gpkg"))
 )
 
@@ -212,8 +211,7 @@ towpaths <- terra::vect(x = "output/goa/shapefiles/goa_towpath.shp")
 towpaths <- terra::project(x = towpaths, "EPSG:3338")
 towpaths <- towpaths[towpaths$CRUISE >= 199000 & towpaths$VESSEL != 83, ]
 
-pdf(file = paste0("G:/GOA/GOA 2025/Station Allocation/",
-                  "goa_2025_station_allocation_520_trawl_info.pdf"),
+pdf(file = paste0(output_dir, "goa_2025_station_allocation_520_trawl_info.pdf"),
     width = 8, height = 11, onefile = T, family = "serif")
 
 ## Set figure parameters
@@ -325,23 +323,25 @@ goa_drawn_stations <- rbind(
 goa_drawn_stations <- goa_drawn_stations[order(goa_drawn_stations$STRATUM), ]
 
 ## Create excel file and append station allocation
-xlsx::write.xlsx(x = goa_drawn_stations,
-                 file = paste0("G:/GOA/GOA 2025/Station Allocation/",
-                               "goa_2025_station_allocation_520.xlsx"),
-                 sheetName = "Station Allocation",
-                 row.names = FALSE,
-                 showNA = FALSE)
+xlsx::write.xlsx(
+  x = goa_drawn_stations,
+  file = paste0(output_dir, "goa_2025_station_allocation_520.xlsx"),
+  sheetName = "Station Allocation",
+  row.names = FALSE,
+  showNA = FALSE
+)
 
 ## Append the station allocation per stratum and vessel
-xlsx::write.xlsx(x = cbind(
-  STRATUM = as.numeric(rownames(table(goa_drawn_stations$STRATUM,
-                                      goa_drawn_stations$VESSEL))),
-  table(goa_drawn_stations$STRATUM, goa_drawn_stations$VESSEL)
-),
-file = paste0("G:/GOA/GOA 2025/Station Allocation/",
-              "goa_2025_station_allocation_520.xlsx"),
-sheetName = "Stratum Allocation",
-row.names = FALSE, showNA = FALSE, append = TRUE)
+xlsx::write.xlsx(
+  x = cbind(
+    STRATUM = as.numeric(rownames(table(goa_drawn_stations$STRATUM,
+                                        goa_drawn_stations$VESSEL))),
+    table(goa_drawn_stations$STRATUM, goa_drawn_stations$VESSEL)
+  ),
+  file = paste0(output_dir, "goa_2025_station_allocation_520.xlsx"),
+  sheetName = "Stratum Allocation",
+  row.names = FALSE, showNA = FALSE, append = TRUE
+)
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##  Append priority strata from which to drop stations to output
@@ -365,8 +365,9 @@ for (ieffort in seq(from = 510, to = 450, by = -10)) {
     temp_allocation$ms_allocation$ms_allocation
 }
 
-xlsx::write.xlsx(x = contingency_table,
-                 file = paste0("G:/GOA/GOA 2025/Station Allocation/",
-                               "goa_2025_station_allocation_520.xlsx"),
-                 sheetName = "Priority Strata for Stn Drops",
-                 row.names = FALSE, showNA = FALSE, append = TRUE)
+xlsx::write.xlsx(
+  x = contingency_table,
+  file = paste0(output_dir, "goa_2025_station_allocation_520.xlsx"),
+  sheetName = "Priority Strata for Stn Drops",
+  row.names = FALSE, showNA = FALSE, append = TRUE
+)
