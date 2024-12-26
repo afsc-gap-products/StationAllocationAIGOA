@@ -132,7 +132,8 @@ table(stn_allocation$STRATUM, stn_allocation$VESSEL)
 ##   Plot map of drawn stations
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-pdf(file = "G:/GOA/GOA 2025/Station Allocation/goa_stations_2025_trawl.pdf",
+pdf(file = paste0("G:/GOA/GOA 2025/Station Allocation/",
+                  "goa_2025_station_allocation_520_map.pdf"),
     width = 8, height = 6, onefile = TRUE)
 for (iarea in c(610, 620, 630, 640, 650)) { ## Loop over area -- start
 
@@ -182,14 +183,26 @@ for (iarea in c(610, 620, 630, 640, 650)) { ## Loop over area -- start
 dev.off()
 
 ## Write drawn stations to geopackage
+stn_centroids_aea <-
+  terra::centroids(x = merge(x = goa_stations,
+                             y = stn_allocation[, c("STATION", "VESSEL")],
+                             by = "STATION"),
+                   inside = TRUE)
+stn_centroids_ll <- terra::project(x = stn_centroids_aea, "EPSG:4326")
+
 writeVector(
-  x = merge(x = goa_stations,
-            y = stn_allocation[, c("STATION", "VESSEL")],
-            by = "STATION"),
-  file = "G:/GOA/GOA 2025/Station Allocation/goa_stations_2025.gpkg",
-  overwrite = file.exists(paste0("analysis_scripts/GOA/",
-                                 "goa_restratification_2025/",
-                                 "goa_stations_2025.gpkg"))
+  x = stn_centroids_aea,
+  file = paste0("G:/GOA/GOA 2025/Station Allocation/",
+                "goa_2025_station_allocation_520_aea.gpkg"),
+  overwrite = file.exists(paste0("G:/GOA/GOA 2025/Station Allocation/",
+                                 "goa_2025_station_allocation_520_aea.gpkg"))
+)
+writeVector(
+  x = stn_centroids_ll,
+  file = paste0("G:/GOA/GOA 2025/Station Allocation/",
+                "goa_2025_station_allocation_520_ll.gpkg"),
+  overwrite = file.exists(paste0("G:/GOA/GOA 2025/Station Allocation/",
+                                 "goa_2025_station_allocation_520_ll.gpkg"))
 )
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -199,7 +212,8 @@ towpaths <- terra::vect(x = "output/goa/shapefiles/goa_towpath.shp")
 towpaths <- terra::project(x = towpaths, "EPSG:3338")
 towpaths <- towpaths[towpaths$CRUISE >= 199000 & towpaths$VESSEL != 83, ]
 
-pdf(file = "G:/GOA/GOA 2025/Station Allocation/goa_stations_2025_trawl.pdf",
+pdf(file = paste0("G:/GOA/GOA 2025/Station Allocation/",
+                  "goa_2025_station_allocation_520_trawl_info.pdf"),
     width = 8, height = 11, onefile = T, family = "serif")
 
 ## Set figure parameters
