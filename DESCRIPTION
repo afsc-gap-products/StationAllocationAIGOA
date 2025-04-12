@@ -8,7 +8,7 @@ Description: Station Allocation for NOAA/NMFS/AFSC/RACE/GAP Aleutian Island and 
 License: What license is it under?
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 7.3.1
+RoxygenNote: 7.3.2
 Imports: RODBC, SamplingStrata, flextable
 Depends: 
     R (>= 4.0.0)
