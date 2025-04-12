@@ -16,40 +16,21 @@ year <- 2025
 survey <- "GOA"
 total_n <- 400
 
+station_allocation_path <- paste0("G:/", survey, "/",
+                                  survey, " ", year, "/Station Allocation/",
+                                  tolower(x = survey), "_", year,
+                                  "_station_allocation_", total_n, ".xlsx")
+output_path <- paste0("G:/RACE_Survey_App/files/Station info/AI_GOA/",
+                      "Station logs/Paper logs/",
+                      year, " ", survey, " Skipper Station Logs.xlsx")
+
 goa_allocated_stations <- openxlsx::read.xlsx(
-  xlsxFile = paste0("G:/", survey, "/",
-                    survey, " ", year, "/Station Allocation/",
-                    tolower(x = survey), "_", year,
-                    "_station_allocation_", total_n, ".xlsx"),
+  xlsxFile = station_allocation_path,
   sheet = "Station Allocation"
 )
 
 goa_allocated_stations <-
   goa_allocated_stations[order(goa_allocated_stations$LONGITUDE), ]
-
-##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-##   Create a function to insert a header row at a set interval
-##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-insert_running_headers <-
-  function(df,
-           n = 13,
-           title = "Alaska Provider Station Log 202501") {
-
-    out <- data.frame()
-    total <- nrow(x = df)
-
-    ## Put the title sort of in the middle of the sheet
-    title_row <- paper_station_log[0, ]
-    title_row[1, "Latitude"] = title
-    header_row <- as.list(x = names(x = df))
-
-    for (i in seq(from = 1, to = total, by = n)) {
-      chunk <- df[i:min(i + n - 1, total), ]
-      out <- rbind(out, title_row, header_row, chunk)
-    }
-    names(x = out) <- names(x = df)
-    return(out[-1:-2, ])
-  }
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Create a new workbook
@@ -91,7 +72,7 @@ for (ipage in 1:length(x = vessel_names)) { ## Loop over vessels -- start
   paper_station_log <-
     insert_running_headers(df = paper_station_log,
                            n = page_break_interval,
-                           title = paste0("Skipper's Station Log ", year, "-01"))
+                           title = paste0("Skipper Station Log ", year, "-01"))
 
   ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ##   Add Sheet
@@ -251,9 +232,4 @@ for (ipage in 1:length(x = vessel_names)) { ## Loop over vessels -- start
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Save workbook
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-openxlsx::saveWorkbook(
-  wb = wb,
-  file = paste0("analysis_scripts/",
-                year, " ", survey, " Skipper Station Logs.xlsx"),
-  overwrite = TRUE
-)
+openxlsx::saveWorkbook(wb = wb, file = output_path, overwrite = TRUE)
