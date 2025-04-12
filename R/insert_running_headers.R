@@ -11,6 +11,9 @@
 #' @param title_column_idx integer. Column index where the title should be placed
 #' @param title string. Running title of the log, e.g.,
 #' "Alaska Provider FPC Station Log 202501"
+#'
+#' @export
+#'
 
 insert_running_headers <-
   function(df,

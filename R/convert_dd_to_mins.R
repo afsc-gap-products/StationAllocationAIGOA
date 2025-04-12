@@ -8,6 +8,8 @@
 #' @param x vector of latitudes or longitudes to convert.
 #' @param digits integer indicating the number of decimal places to be used.
 #'
+#' @export
+#'
 
 convert_dd_to_mins <- function(x, digits = 2) {
   round(x = (x - floor(x) * 60 / 100) + floor(x) * 100,
