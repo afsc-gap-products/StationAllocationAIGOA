@@ -12,6 +12,7 @@ rm(list = ls())
 library(akgfmaps)
 library(gapindex)
 library(RColorBrewer)
+library(ggplot2)
 
 channel <- gapindex::get_connected(check_access = FALSE)
 
@@ -26,7 +27,7 @@ nmfs <- RODBC::sqlQuery(
            AND AREA_ID IN (610, 620, 630, 640, 650)")
 
 goa_2025_allocation <-
-  sf::st_read(dsn = "G:/GOA/GOA 2025/Station Allocation/goa_2025_station_allocation_520_aea.gpkg")
+  sf::st_read(dsn = "G:/GOA/GOA 2025/Station Allocation/goa_2025_station_allocation_450_aea.gpkg")
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Import GOA base layers from akgfmaps package
@@ -74,11 +75,11 @@ ggplot() +
   scale_y_continuous(name = "",
                      breaks = goa_base_layers$lat.breaks) +
   ggspatial::annotation_scale(location = 'tl', line_width = 0.5) +
-  theme_bw() +
+  theme_bw()
 ## Save
-ggsave(filename = paste0("analysis_scripts/GOA/goa_restratification_2025/",
-                         "stratum_map.png"),
-       width = 6, height = 3, units = "in", dpi = 750)
+ggsave(path = "analysis_scripts/GOA/goa_restratification_2025/",
+       filename = "stratum_map.png",
+       width = 6, height = 3, units = "in", dpi = 750 )
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Create Station Map

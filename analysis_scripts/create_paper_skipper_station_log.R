@@ -14,14 +14,14 @@ library(openxlsx)
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 year <- 2025
 survey <- "GOA"
-total_n <- 400
+total_n <- 450
 
 station_allocation_path <- paste0("G:/", survey, "/",
                                   survey, " ", year, "/Station Allocation/",
                                   tolower(x = survey), "_", year,
                                   "_station_allocation_", total_n, ".xlsx")
 output_path <- paste0("G:/RACE_Survey_App/files/Station info/AI_GOA/",
-                      "Station logs/Paper logs/",
+                      "Station logs/Paper logs/GOA/",
                       year, " ", survey, " Skipper Station Logs.xlsx")
 
 goa_allocated_stations <- openxlsx::read.xlsx(

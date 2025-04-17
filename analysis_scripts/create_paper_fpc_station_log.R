@@ -15,14 +15,14 @@ library(StationAllocationAIGOA)
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 year <- 2025
 survey <- "GOA"
-total_n <- 400
+total_n <- 450
 
 station_allocation_path <- paste0("G:/", survey, "/",
                                   survey, " ", year, "/Station Allocation/",
                                   tolower(x = survey), "_", year,
                                   "_station_allocation_", total_n, ".xlsx")
 output_path <- paste0("G:/RACE_Survey_App/files/Station info/AI_GOA/",
-                      "Station logs/Paper logs/",
+                      "Station logs/Paper logs/GOA/",
                       year, " ", survey, " FPC Station Logs.xlsx")
 
 goa_allocated_stations <- openxlsx::read.xlsx(
@@ -87,7 +87,7 @@ for (ipage in 1:length(x = vessel_names)) { ## Loop over vessels -- start
   ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   page_break_interval <- 13
   paper_station_log <-
-    insert_running_headers(df = paper_station_log,
+    StationAllocationAIGOA::insert_running_headers(df = paper_station_log,
                            n = page_break_interval,
                            title_column_idx = 9,
                            title = paste(ivessel, year, "FPC Station Log"))
