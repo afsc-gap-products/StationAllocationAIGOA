@@ -34,8 +34,7 @@ racebase_data <- gapindex::get_data(
 ##   Import new strata
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 strata_2025 <-
-  terra::vect(x = "data/GOA/processed_shapefiles/goa_strata_2025.shp")
-names(x = strata_2025) <- toupper(x = names(x = strata_2025))
+  terra::vect(x = "data/GOA/shapefiles_akgfmaps/goa_strata_2025.gpkg")
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Reclassify haul station locations
