@@ -134,12 +134,6 @@ goa_stations[, c("LONGITUDE", "LATITUDE")] <-
 goa_strata <-
   terra::vect(x = "data/GOA/shapefiles_akgfmaps/goa_strata_2025.gpkg")
 
-goa_stations_mixed_trawl <-
-  readRDS(file = paste0("analysis_scripts/GOA/goa_restratification_2025/",
-                        "goa_stations_mixed_trawl.RDS"))
-goa_stations_mixed_trawl <- sf::st_transform(x = goa_stations_mixed_trawl,
-                                             crs = "EPSG:3338")
-
 ## `goa_base` are basic shape layers from the akgfmaps package
 goa_base <- akgfmaps::get_base_layers(select.region = "goa",
                                       set.crs = "EPSG:3338")
