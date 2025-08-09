@@ -38,6 +38,8 @@
 #' \item{CENTER_LAT, CENTER_LONG}{Latitude and longitude of station centroid}
 #' }
 #'
+#' @export
+#'
 
 goa_allocate_stations <-
   function(n = 550,
