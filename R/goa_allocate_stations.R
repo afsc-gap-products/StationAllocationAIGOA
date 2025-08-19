@@ -87,6 +87,7 @@ goa_allocate_stations <-
     ##   Constants
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     dens <- StationAllocationAIGOA::D_gct
+    optim_df <- StationAllocationAIGOA::optim_df
     spp_idx <- match(species, dimnames(dens)[[2]] )
     ns_opt <- length(x = spp_idx)
     n_cells <- dim(x = dens)[1]
