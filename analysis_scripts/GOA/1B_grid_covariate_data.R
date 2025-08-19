@@ -1,120 +1,57 @@
-###############################################################################
-## Project:     VAST covariates across goa grid
-## Author:      Zack Oyafuso (zack.oyafuso@noaa.gov)
-## Description: Assign bathymetry value from the EFH data lyaer to each grid in
-##              the Gulf of Alaska interpolation grid.
-##              Uses R version 4.3.x to incorporate updates from akgfmaps
-###############################################################################
-rm(list = ls())
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## Project:       GOA interpolation grid under 2025 GOA survey footprint
+## Author:        Zack Oyafuso (zack.oyafuso@noaa.gov)
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-##################################################
-####   Import packages
-##################################################
-library(sf); library(stars); library(akgfmaps)
+## Import libraries
+library(akgfmaps)
+library(terra)
+library(sf)
 
-##################################################
-####   CRSs used
-##################################################
-lonlat_crs <- "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
-
-##################################################
-####   Merge together bathymetry rasters
-##################################################
-goa_bathy <-
-  terra::rast(x = "//AKC0SS-n086/AKC_PubliC/Dropbox/Zimm/GEBCO/GOA/goa_bathy")
-
-##################################################
-####   Import Extrapolation grid (goa_grid)
-####   Import NMFS areas (nmfs)
-####   Import CPUE data (goa_data_geostat)
-####   Import stratum boundaries (stratum_boundaries)
-##################################################
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##   Create 2-nmi grid within the 2025 GOA footprint
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+goa_footprint_2025 <-
+  ## Import goa strata
+  akgfmaps::get_base_layers(
+    select.region = "goa",
+    design.year = 2025,
+    set.crs = "+proj=utm +zone=5 +units=km"
+  )$survey.strata |>
+  ## Remove strata in the 700 - 1000 m depth zone
+  subset(subset = STRATUM < 500) |>
+  ## Dissolve boundaries
+  terra::vect() |>
+  terra::aggregate()
 
 goa_grid <-
-  read.csv(file = "data/GOA/extrapolation_grid/GOAThorsonGrid_Less700m.csv")
-goa_grid <- goa_grid[, c("Id", "Shape_Area", "Longitude", "Latitude")]
-goa_grid$Shape_Area <- goa_grid$Shape_Area / 1000 / 1000 #Convert to km2
-names(x = goa_grid) <- c( "Id", "Area_km2", "Lon", "Lat")
+  ## Create a rectangular grid that overlaps with the 2025 GOA footprint
+  sf::st_make_grid(x = goa_footprint_2025,
+                   square = T,
+                   cellsize = 3.704) |>
+  terra::vect() |>
+  ## Intersect with the footprint
+  terra::intersect(goa_footprint_2025)
 
-nmfs <-
-  terra::vect(x = akgfmaps::get_nmfs_areas(set.crs = terra::crs(x = goa_bathy)))
-nmfs <-
-  nmfs[nmfs$REP_AREA %in% c(610, 620, 630, 640, 650), "REP_AREA"]
+goa_grid_df <- data.frame(terra::centroids(x = goa_grid) |> terra::crds())
+names(x = goa_grid_df) <- c("X", "Y")
 
-goa_data_geostat = read.csv(file = "data/GOA/vast_data/goa_data_geostat.csv")
+goa_grid_df[, c("lon", "lat")] <-
+  terra::project(x = goa_grid, "+proj=longlat +datum=WGS84") |>
+  terra::centroids() |>
+  terra::crds()
 
-stratum_boundaries <-
-  read.csv(file = "data/GOA/strata_boundaries/depth_modifications_2025.csv")
+goa_grid_df$area_km2 <- terra::expanse(x = goa_grid) / 1e6
 
-##################################################
-####   Transform extrapolation grid to aea, extract bathymetry values onto grid
-##################################################
-grid_shape = terra::vect(x = goa_grid[, c("Lon", "Lat", "Area_km2")],
-                         geom = c("Lon", "Lat"), keepgeom = TRUE,
-                         crs = lonlat_crs)
-grid_shape_aea <- terra::project(x = grid_shape, terra::crs(x = goa_bathy))
-grid_shape_aea[, c("Eastings", "Northings")] <- terra::crds(x = grid_shape_aea)
+## Check to make sure the total area of the interpolation grid matches the
+## actual survey footprint.
+sum(goa_grid_df$area_km2) # 301174.5 km2
+expanse(goa_footprint_2025) * 1e-6 # 301174.7 km2
 
-grid_shape_aea$Depth_m <-
-  terra::extract(x = goa_bathy, y = grid_shape_aea)$GOA_bathy
-
-##################################################
-####   Classify cells to NMFS reporting areas
-##################################################
-grid_shape_aea <- terra::intersect(x = grid_shape_aea, y = nmfs)
-
-##################################################
-####   Remove cells with depths outside the observed range to the range
-##################################################
-grid_shape_aea <- grid_shape_aea[
-  (grid_shape_aea$Depth_m >= min(x = goa_data_geostat$Depth_m) &
-     grid_shape_aea$Depth_m <= 700),
-]
-
-##################################################
-#### Reclassify the stratum of the interpolation cells based on extracted depth
-##################################################
-grid_shape_aea$STRATUM <- NA
-
-for (inmfs in nmfs$REP_AREA) { ## Loop over NMFS Area -- start
-
-  ## Subset strata within the NMFS Area (inmfs)
-  temp_boundaries <- subset(x = stratum_boundaries,
-                            subset = REP_AREA == inmfs)
-
-  ## Using the depth stratum definitions, reclassify the grid cells within
-  ## the NMFS area (inmfs) to the correct stratum.
-  for (istratum in 1:nrow(x = temp_boundaries)) { ## Loop over strata -- start
-    grid_shape_aea[
-      grid_shape_aea$REP_AREA == inmfs &
-        round(x = grid_shape_aea$Depth_m) >=
-		temp_boundaries$DEPTH_MIN_M[istratum]    &
-        round(x = grid_shape_aea$Depth_m) <=
-		temp_boundaries$DEPTH_MAX_M[istratum]
-      ]$STRATUM <- temp_boundaries$STRATUM[istratum]
-
-  } ## Loop over strata -- end
-} ## Loop over NMFS Area -- end
-
-##################################################
-####   scale grid bathymetry values to standard normal, using the mean and sd
-####   of the BTS data from script 1A_operating_model_data.R
-##################################################
-BTS_mean <- mean(x = log10(x = goa_data_geostat$Depth_m))
-BTS_sd   <-  sd(x = log10(x = goa_data_geostat$Depth_m))
-
-grid_shape_aea$LOG10_DEPTH_M <- log10(x = grid_shape_aea$Depth_m)
-grid_shape_aea$LOG10_DEPTH_M_CEN <-
-  (grid_shape_aea$LOG10_DEPTH_M - BTS_mean) / BTS_sd
-
-##################################################
-####   Save
-##################################################
-if (!dir.exists(paths = "data/GOA/vast_data/"))
-  dir.create(path = "data/GOA/vast_data/")
-write.csv(as.data.frame(x = grid_shape_aea),
-          row.names = F,
-          file = "data/GOA/vast_data/goa_interpolation_grid.csv")
-
-saveRDS(object = as.data.frame(x = grid_shape_aea),
-        file = "data/GOA/vast_data/goa_interpolation_grid.RDS")
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##   Write to file
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+write.csv(x = goa_grid_df,
+          file = paste0("data/GOA/sdmtmb_data/",
+                        "goa_2025_interpolation_grid.csv"),
+          row.names = F)
