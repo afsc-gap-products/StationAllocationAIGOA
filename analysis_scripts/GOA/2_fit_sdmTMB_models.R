@@ -1,6 +1,5 @@
-# Run all GOA sdmTMB indices ----
-# Author: Lewis Barnett
-# Date: 25-2-2025
+# Run all GOA sdmTMB spatiotemporal models ----
+# Author: Lewis Barnett, Zack Oyafuso
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Import packages
@@ -43,7 +42,7 @@ mesh <- sdmTMB::make_mesh(subset(x = goa_data_geostat,
                           xy_cols = c("X", "Y"),
                           n_knots = 500)
 
-for (species_name in species_list[-1]) {
+for (species_name in species_list) {
 
   cat("Working on", species_name, "\n")
 

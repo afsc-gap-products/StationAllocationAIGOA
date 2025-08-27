@@ -16,7 +16,7 @@ library(sf)
 chl <- gapindex::get_connected(check_access = FALSE)
 
 spp_set <- read.csv(file = "data/GOA/species_list/species_list.csv")
-planning_years <- c(1996, 1999, seq(from = 2003, to = 2023, by = 2))
+planning_years <- c(1996, 1999, seq(from = 2003, to = 2025, by = 2))
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Pull catch and effort data and calculate CPUE (zero-filled)
