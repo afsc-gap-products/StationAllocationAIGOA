@@ -9,16 +9,18 @@ library(akgfmaps); library(terra); library(sf)
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Create 2-nmi grid within the 2025 GOA footprint
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-goa_footprint_2025 <-
-  ## Import goa strata
+## Import goa strata <= 700 m
+goa_strata_2025 <-
   akgfmaps::get_base_layers(
     select.region = "goa",
     design.year = 2025,
     set.crs = "+proj=utm +zone=5 +units=km"
   )$survey.strata |>
   ## Remove strata in the 700 - 1000 m depth zone
-  subset(subset = STRATUM < 500) |>
-  terra::vect()
+  subset(subset = STRATUM < 500)
+
+## Dissolve inner boundaries
+goa_footprint_2025 <- goa_strata_2025 |> terra::vect() |> terra::aggregate()
 
 ## Create a 2-nautical-mile (3.704 km) rectangular grid that overlaps with the
 ## 2025 GOA survey footprint
@@ -30,9 +32,13 @@ goa_grid <-
   ## Intersect with the footprint
   terra::intersect(goa_footprint_2025)
 
+## Pull the centroids of each gridcell
+cell_centroids <- terra::centroids(x = goa_grid, inside = TRUE) |>
+  terra::intersect(y = terra::vect(goa_strata_2025)[, "STRATUM"] )
+
 ## Attach the centroids (in UTMs)
-goa_grid_df <- data.frame(stratum = goa_grid$STRATUM,
-                          terra::centroids(x = goa_grid) |> terra::crds())
+goa_grid_df <- data.frame(stratum = cell_centroids$STRATUM,
+                          cell_centroids |> terra::crds())
 names(x = goa_grid_df) <- toupper(x = names(x = goa_grid_df))
 
 ## Project sampling unit centroids in lat/lon
