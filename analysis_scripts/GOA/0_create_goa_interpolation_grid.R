@@ -6,6 +6,10 @@
 ## Import libraries
 library(akgfmaps); library(terra); library(sf)
 
+## Import bathymetry
+goa_bathy <-
+  terra::rast(x = "//AKC0SS-n086/AKC_PubliC/Dropbox/Zimm/GEBCO/GOA/goa_bathy")
+
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Create 2-nmi grid within the 2025 GOA footprint
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -35,9 +39,12 @@ goa_grid <-
 ## Pull the centroids of each gridcell
 cell_centroids <- terra::centroids(x = goa_grid, inside = TRUE) |>
   terra::intersect(y = terra::vect(goa_strata_2025)[, "STRATUM"] )
+cell_centroids$depth_m <-
+  terra::extract(x = goa_bathy, y = cell_centroids)$GOA_bathy
 
 ## Attach the centroids (in UTMs)
 goa_grid_df <- data.frame(stratum = cell_centroids$STRATUM,
+                          depth_m = cell_centroids_depth$GOA_bathy,
                           cell_centroids |> terra::crds())
 names(x = goa_grid_df) <- toupper(x = names(x = goa_grid_df))
 
@@ -49,6 +56,14 @@ goa_grid_df[, c("LON", "LAT")] <-
 
 ## Calculate area of each sampling unit
 goa_grid_df$AREA_KM2 <- terra::expanse(x = goa_grid) / 1e6
+
+## Filter out cells that have depths > 700 or < 0 or NA
+goa_grid_df <- goa_grid_df[
+  -which(cell_centroids$depth_m < 0 |
+           cell_centroids$depth_m > 700 |
+           is.na(x = cell_centroids$depth_m)
+  ),
+]
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Write to file
