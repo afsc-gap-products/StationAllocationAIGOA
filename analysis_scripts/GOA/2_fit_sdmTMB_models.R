@@ -53,6 +53,32 @@ for (species_name in species_list) {
 
   ## Fit model
   cat("Currently fitting model...")
+
+  fit_depth <- sdmTMB::sdmTMB(
+    formula = cpue_kg_km2 ~ 0 + year_f + s(depth_m),
+    data = subset(x = goa_data_geostat,
+                  subset = species == species_name),
+    mesh = mesh,
+    family = do.call(what = ifelse(
+      test = species_name %in% c("northern rockfish", "dusky rockfish"),
+      yes = "delta_lognormal",
+      no = "delta_gamma"
+    ),
+    args = list(type = "poisson-link")
+    ),
+    time = "year",
+    spatial = "on",
+    spatiotemporal = "iid",
+    anisotropy = TRUE,
+    silent = F
+  )
+
+  nd <- pred_grid; names(nd) <- tolower(names(pred_grid))
+  p_dpg <- predict(fit_depth, newdata = nd, re_form = NA)
+  ggplot(p_dpg, aes(depth_m, est1 + est2)) +
+    geom_line() +
+    ylab("log expected catch weight")
+
   fit <- sdmTMB::sdmTMB(
     formula = cpue_kg_km2 ~ 0 + year_f,
     data = subset(x = goa_data_geostat,
