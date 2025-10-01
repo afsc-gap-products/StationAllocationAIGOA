@@ -34,6 +34,7 @@ pred_grid <- cbind(id = 1:nrow(x = pred_grid),
                        time_values = year_set)
 pred_grid$year_f <- as.factor(x = pred_grid$year_f)
 pred_grid$year <- as.integer(as.character(factor(pred_grid$year_f)))
+names(x = pred_grid)[names(x = pred_grid) == "DEPTH_M"] <- "depth_m"
 
 mesh <- sdmTMB::make_mesh(subset(x = goa_data_geostat,
                                  ## there are 15 species, so just filter one
@@ -52,70 +53,64 @@ for (species_name in species_list) {
     dir.create(path = result_dir, recursive = TRUE)
 
   ## Fit model
-  cat("Currently fitting model...")
-
-  fit_depth <- sdmTMB::sdmTMB(
-    formula = cpue_kg_km2 ~ 0 + year_f + s(depth_m),
+  model_args <- list(
+    formula = as.formula(cpue_kg_km2 ~ 0 + year_f + s(depth_m, k = 2)),
     data = subset(x = goa_data_geostat,
                   subset = species == species_name),
     mesh = mesh,
     family = do.call(what = ifelse(
       test = species_name %in% c("northern rockfish", "dusky rockfish"),
       yes = "delta_lognormal",
-      no = "delta_gamma"
-    ),
-    args = list(type = "poisson-link")
-    ),
-    time = "year",
-    spatial = "on",
-    spatiotemporal = "iid",
-    anisotropy = TRUE,
-    silent = F
-  )
-
-  nd <- pred_grid; names(nd) <- tolower(names(pred_grid))
-  p_dpg <- predict(fit_depth, newdata = nd, re_form = NA)
-  ggplot(p_dpg, aes(depth_m, est1 + est2)) +
-    geom_line() +
-    ylab("log expected catch weight")
-
-  fit <- sdmTMB::sdmTMB(
-    formula = cpue_kg_km2 ~ 0 + year_f,
-    data = subset(x = goa_data_geostat,
-                  subset = species == species_name),
-    mesh = mesh,
-    family = do.call(what = ifelse(
-      test = species_name %in% c("northern rockfish", "dusky rockfish"),
-      yes = "delta_lognormal",
-      no = "delta_gamma"
-    ),
-    args = list(type = "poisson-link")
+      no = "delta_gamma"),
+      args = list(type = "poisson-link")
     ),
     time = "year",
     spatial = "on",
     spatiotemporal = "iid",
     anisotropy = TRUE,
+    k_folds = 10,
+    parallel = FALSE,
+    use_initial_fit = TRUE,
     silent = TRUE
   )
-  saveRDS(fit, file = paste0(result_dir, "/fit.RDS"))
-  cat("Complete\n")
+
+  cat("Running model using depth as a covariate depth with 10-fold CV. ")
+  fit_depth_cv <- do.call(what = "sdmTMB_cv", args = model_args)
+  cat("NLL:", -fit_depth_cv$sum_loglik, "\n")
+  saveRDS(object = fit_depth_cv, file = paste0(result_dir, "/fit_depth_cv.RDS"))
+
+  cat("Running model with no covariates with 10-fold CV. ")
+  model_args$formula <- as.formula(cpue_kg_km2 ~ 0 + year_f)
+  fit_cv <- do.call(what = "sdmTMB_cv", args = model_args)
+  cat("NLL:", -fit_cv$sum_loglik, "\n")
+  saveRDS(object = fit_cv, file = paste0(result_dir, "/fit_cv.RDS"))
+
+  better_model <- c("", "depth")[which.min(c(-fit_cv$sum_loglik,
+                                             -fit_depth_cv$sum_loglik))]
+
+  ## Refit the model with the lower -sum_loglik across folds but first,
+  ## remove the arguments unique to the sdmTMB_cv() function because now we're
+  ## using the original sdmTMB() function
+  model_args$k_folds <- model_args$parallel <- model_args$use_initial_fit <- NULL
+  if (better_model == "depth") model_args$formula <-
+    as.formula(cpue_kg_km2 ~ 0 + year_f + s(depth_m, k = 2))
+  fit <- do.call(what = "sdmTMB", args = model_args)
+  saveRDS(object = fit, file = paste0(result_dir, "/fit.RDS"))
 
   ## Predict density and create simulated data on the interpolation grid
-  cat("Predicting over interpolation grid...")
+  cat("Predicting over interpolation grid\n")
   p <- predict(fit, newdata = pred_grid, return_tmb_object = TRUE)
   saveRDS(predict(fit, newdata = pred_grid, type = "response"),
           file = paste0(result_dir, "/predictions.RDS"))
-  cat("Complete\n")
 
-  cat("Simulating densities over interpolation grid...")
+  cat("Simulating densities over interpolation grid\n")
   sim_data <- predict(fit, newdata = pred_grid, type = "response", nsim = 1000)
   saveRDS(sim_data, file = paste0(result_dir, "/sim_data.RDS"))
   rm(sim_data); gc()
-  cat("Complete\n")
 
   ## Plot predicted density maps and fit diagnostics ----
   # q-q plot
-  cat("Running model diagnostics...")
+  cat("Running model diagnostics\n")
   pdf(file = paste0(result_dir, "/qq.pdf"), width = 5, height = 5)
   sims <- simulate(object = fit, nsim = 500, type = "mle-mvn")
   sims |> dharma_residuals(object = fit)
@@ -146,7 +141,5 @@ for (species_name in species_list) {
     theme_bw()
   ggsave(file = paste0(result_dir, "/predictions_map.pdf"),
          height = 9, width = 6.5, units = "in")
-
-  cat("Complete\n")
   cat("Finished with", species_name, "\n\n")
 }
