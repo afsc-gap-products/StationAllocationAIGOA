@@ -37,7 +37,7 @@ allocate.effort <- function(channel = NULL,
                                    AREA_KM2 AS AREA
                                    FROM GAP_PRODUCTS.AREA
                                    WHERE SURVEY_DEFINITION_ID = 52
-                                   AND DESIGN_YEAR = 1980
+                                   AND DESIGN_YEAR = 1991
                                    AND AREA_TYPE = 'STRATUM'",
                             believeNRows = FALSE)
 
