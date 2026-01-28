@@ -147,5 +147,10 @@ allocate.effort <- function(channel = NULL,
                           }))
 
   ## Round and return return
-  return(round(x = weighted_allocation, digits = 0))
+  return(
+    list(ss_allocation = subset(x = mean_allocation_spp,
+                                select = c(SPECIES_CODE, STRATUM, MEAN_N_OPT)),
+         ms_allocation = round(x = weighted_allocation,
+                               digits = 0))
+  )
 }
