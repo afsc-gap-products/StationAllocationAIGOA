@@ -13,17 +13,18 @@ library(openxlsx)
 ##   Import a given allocation and order by longitude.
 ##   GOA: ascending ordering by longitude means West -> East
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-year <- 2025
-survey <- "GOA"
-total_n <- 450
+year <- 2026
+survey <- "ALEUTIAN"
+survey_short <- "AI"
+total_n <- 400
 
-station_allocation_path <- paste0("G:/", survey, "/",
-                                  survey, " ", year, "/Station Allocation/",
-                                  tolower(x = survey), "_", year,
-                                  "_station_allocation_", total_n, ".xlsx")
-output_path <- paste0("G:/RACE_Survey_App/files/Station info/AI_GOA/",
-                      "Station logs/Paper logs/GOA/",
-                      year, " ", survey, " Skipper Station Logs.xlsx")
+station_allocation_path <- paste0("Y:/RACE_GF/", survey, "/",
+                                  survey_short, " ", year, "/Station Allocation/",
+                                  tolower(x = survey_short), "_", year,
+                                  "_station_allocation_", total_n, "stn.xlsx")
+output_path <- paste0("Y:/RACE_GF/RACE_Survey_App/files/Station info/AI_GOA/",
+                      "Station logs/Paper logs/", survey_short, "/",
+                      year, " ", survey_short, " Skipper Station Logs.xlsx")
 
 goa_allocated_stations <- openxlsx::read.xlsx(
   xlsxFile = station_allocation_path,
@@ -51,11 +52,44 @@ for (ipage in 1:length(x = vessel_names)) { ## Loop over vessels -- start
   ##   Take the allocation table and format into the form of the station log
   ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   paper_station_log <-
-    data.frame(subset(x = goa_allocated_stations,
-                      select = c("VESSEL", "STATION", "STRATUM",
-                                 "LATITUDE", "LONGITUDE")),
-               "Comments" = "",
-               check.names = F )
+    data.frame(
+      subset(x = goa_allocated_stations[
+        ## order by longitude, convert to degrees W if LONGITUDE > 0
+        order(ifelse(test = goa_allocated_stations$LONGITUDE > 0,
+                     yes = goa_allocated_stations$LONGITUDE - 360,
+                     no = goa_allocated_stations$LONGITUDE),
+              decreasing = ifelse(test = survey_short == "AI",
+                                  yes = FALSE,
+                                  no = FALSE)), ],
+        select = c("VESSEL", "STATION", "STRATUM",
+                   "LATITUDE", "LONGITUDE")),
+      "Comments" = "",
+      check.names = F
+    )
+
+  ## Reorder stations so that the bonus and new stations are interspersed
+  # Use ave() to get the row count within each STRATUM
+  row_idx <- ave(seq_len(nrow(paper_station_log)),
+                 paper_station_log$STRATUM,
+                 FUN = seq_along)
+
+  # Define the priority logic
+  priority <- ifelse(row_idx == 1,
+                     yes = 1,
+                     no = ifelse(
+                       test = paper_station_log$STATION_TYPE %in%
+                         c("new"),
+                       yes = 2,
+                       no = 3))
+
+  #Reorder the dataframe: sort by STRATUM first, then by our custom priority
+  paper_station_log <- paper_station_log[
+    order(paper_station_log$STRATUM, priority),
+  ]
+
+  #Clear row names
+  rownames(x = paper_station_log) <- NULL
+
   paper_station_log$LATITUDE <-
     StationAllocationAIGOA::convert_dd_to_mins(x = paper_station_log$LATITUDE)
   paper_station_log$LONGITUDE <-
@@ -159,7 +193,8 @@ for (ipage in 1:length(x = vessel_names)) { ## Loop over vessels -- start
       halign = "center", valign = "center",
       border = "TopBottomLeftRight", borderStyle = "thin",
       fgFill = "#90E0EF"),
-    rows = which(x = is.na(x = paper_station_log$Latitude)) + 2,
+    rows = which(x = is.na(x = paper_station_log$Latitude)
+                 & paper_station_log$Vessel == ivessel) + 2,
     cols = 1:ncol(x = paper_station_log),
     gridExpand = TRUE)
 
