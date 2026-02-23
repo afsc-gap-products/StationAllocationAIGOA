@@ -94,9 +94,9 @@ for (ipage in 1:length(x = vessel_names)) { ## Loop over vessels -- start
     data.frame(
       subset_allocation |> subset(select = c(STATION, STRATUM)),
       "Haul" = "",
-      "Trawl with survey gear?" = "",
-      "Trawl with tire gear?" = "",
-      "New station?" = "",
+      # "Trawl with survey gear?" = "",
+      # "Trawl with tire gear?" = "",
+      # "New station?" = "",
       "Too steep?" = "",
       "Hard/Rocky" = "",
       "Rolly" = "",
@@ -129,7 +129,7 @@ for (ipage in 1:length(x = vessel_names)) { ## Loop over vessels -- start
     StationAllocationAIGOA::insert_running_headers(
       df = paper_station_log,
       n = page_break_interval,
-      title_column_idx = 9,
+      title_column_idx = 13,
       title = paste(ivessel, year, "FPC Station Log")
     )
 
@@ -223,7 +223,7 @@ for (ipage in 1:length(x = vessel_names)) { ## Loop over vessels -- start
     rows = seq(from = 2,
                to = nrow(paper_station_log)+ 2,
                by = page_break_interval + 2),
-    cols = 4:16,
+    cols = 4:13,
     gridExpand = TRUE)
 
   ## Remove borders for the title headers
@@ -290,7 +290,7 @@ for (ipage in 1:length(x = vessel_names)) { ## Loop over vessels -- start
         fontName = "Arial", fontSize = 10,
         halign = "center", valign = "center",
         border = "TopBottomLeftRight", borderStyle = "thin",
-        fgFill = "#73B761"),
+        fgFill = "#84EAB3"),
       rows = which(x = paper_station_log$Comments == "new station:") + 2,
       cols = 1:ncol(x = paper_station_log),
       gridExpand = TRUE)
@@ -303,7 +303,7 @@ for (ipage in 1:length(x = vessel_names)) { ## Loop over vessels -- start
         fontName = "Arial", fontSize = 10,
         halign = "left", valign = "center",
         border = "TopBottomLeftRight", borderStyle = "thin",
-        fgFill = "#73B761"),
+        fgFill = "#84EAB3"),
       rows = which(x = paper_station_log$Comments == "new station:") + 2,
       cols = ncol(x = paper_station_log),
       gridExpand = TRUE)
@@ -326,8 +326,8 @@ for (ipage in 1:length(x = vessel_names)) { ## Loop over vessels -- start
   openxlsx::setColWidths(wb = wb,
                          sheet = sheetname,
                          cols = 1:ncol(x = paper_station_log),
-                         widths = c(12, 5, 7, 7, 7,
-                                    rep(3.25,11), 40))
+                         widths = c(12, 5, 7,
+                                    rep(3.25,10), 63))
 
   ## Station records
   openxlsx::setRowHeights(wb = wb,
@@ -351,6 +351,10 @@ for (ipage in 1:length(x = vessel_names)) { ## Loop over vessels -- start
                                      by = page_break_interval + 2),
                           heights = 70)
 
+  # Page X of Y in center footer
+  setHeaderFooter(wb = wb,
+                  sheet = sheetname,
+                  footer = c(NA, "Page &[Page] of &[Pages]", NA))
 } ## Loop over vessels -- end
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
