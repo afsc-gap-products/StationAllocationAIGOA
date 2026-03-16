@@ -63,7 +63,14 @@ for (ipage in 1:length(x = vessel_names)) { ## Loop over vessels -- start
                                   no = FALSE)), ],
         select = c("VESSEL", "STATION", "STRATUM",
                    "LATITUDE", "LONGITUDE")),
-      "Comments" = "",
+      "Comments" = ifelse(
+        test = is.na(x = goa_allocated_stations$STATION_TYPE),
+        yes = "Alt. station for",
+        no = ifelse(test = goa_allocated_stations$STATION_TYPE == "assigned",
+                    yes = "",
+                    no = paste0(goa_allocated_stations$STATION_TYPE, " station:")
+        )
+      ),
       check.names = F
     )
 
@@ -100,14 +107,22 @@ for (ipage in 1:length(x = vessel_names)) { ## Loop over vessels -- start
   names(x = paper_station_log) <- c("Vessel", "ID", "Stratum",
                                     "Latitude", "Longitude", "Comments")
 
+  ## Create extra rows for alts
+  alt_rows <- paper_station_log
+  alt_rows[] <- NA
+
+  paper_station_log <- rbind(paper_station_log,
+                             alt_rows)
+
   ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ##   Insert a header row every at a set interval
   ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   page_break_interval <- 27
-  paper_station_log <-
-    insert_running_headers(df = paper_station_log,
-                           n = page_break_interval,
-                           title = paste0("Skipper Station Log ", year, "-01"))
+  paper_station_log <- StationAllocationAIGOA::insert_running_headers(
+    df = paper_station_log,
+    n = page_break_interval,
+    title = paste0("Skipper Station Log ", year, "-01")
+  )
 
   ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ##   Add Sheet
@@ -151,7 +166,7 @@ for (ipage in 1:length(x = vessel_names)) { ## Loop over vessels -- start
     style = createStyle(fontName = "Arial", fontSize = 10,
                         halign = "center", valign = "center",
                         border = "TopBottomLeftRight", borderStyle = "thin"),
-    rows = 1:(nrow(x = paper_station_log) + 30),
+    rows = 1:(nrow(x = paper_station_log) * 2),
     cols = 1:ncol(x = paper_station_log),
     gridExpand = TRUE
   )
@@ -165,7 +180,7 @@ for (ipage in 1:length(x = vessel_names)) { ## Loop over vessels -- start
                         halign = "center", valign = "center", wrapText = TRUE,
                         border = "TopBottomLeftRight", borderStyle = "medium"),
     rows = seq(from = 2,
-               to = nrow(x = paper_station_log) + 15,
+               to = nrow(x = paper_station_log) * 2,
                by = page_break_interval + 2),
     cols = 1:ncol(x = paper_station_log),
     gridExpand = TRUE
@@ -193,9 +208,20 @@ for (ipage in 1:length(x = vessel_names)) { ## Loop over vessels -- start
       halign = "center", valign = "center",
       border = "TopBottomLeftRight", borderStyle = "thin",
       fgFill = "#90E0EF"),
-    rows = which(x = is.na(x = paper_station_log$Latitude)
-                 & paper_station_log$Vessel == ivessel) + 2,
+    rows = which(x = paper_station_log$Comments == "bonus station:") + 2,
     cols = 1:ncol(x = paper_station_log),
+    gridExpand = TRUE)
+
+  openxlsx::addStyle(
+    wb = wb,
+    sheet = sheetname,
+    style = createStyle(
+      fontName = "Arial", fontSize = 10,
+      halign = "left", valign = "center",
+      border = "TopBottomLeftRight", borderStyle = "thin",
+      fgFill = "#90E0EF"),
+    rows = which(x = paper_station_log$Comments == "bonus station:") + 2,
+    cols = ncol(x = paper_station_log),
     gridExpand = TRUE)
 
   ## Remove borders for the title headers
@@ -207,7 +233,7 @@ for (ipage in 1:length(x = vessel_names)) { ## Loop over vessels -- start
                         halign = "center", valign = "bottom",
                         borderStyle = "medium", border = "TopBottom"),
     rows = seq(from = 1,
-               to = nrow(x = paper_station_log) + page_break_interval,
+               to = (nrow(x = paper_station_log)*2) + page_break_interval,
                by = page_break_interval + 2),
     cols = 1:ncol(x = paper_station_log),
     gridExpand = TRUE
@@ -222,11 +248,49 @@ for (ipage in 1:length(x = vessel_names)) { ## Loop over vessels -- start
                         borderStyle = "medium", border = "Bottom",
                         wrapText = FALSE, textDecoration = "bold"),
     rows = seq(from = 1,
-               to = nrow(x = paper_station_log) + page_break_interval,
+               to = (nrow(x = paper_station_log) * 2) + page_break_interval,
                by = page_break_interval + 2),
     cols = 1:ncol(x = paper_station_log),
     gridExpand = TRUE
   )
+
+  ## For AI surveys, highlight new station in green
+  if (survey_short == "AI")
+    openxlsx::addStyle(
+      wb = wb,
+      sheet = sheetname,
+      style = createStyle(
+        fontName = "Arial", fontSize = 10,
+        halign = "center", valign = "center",
+        border = "TopBottomLeftRight", borderStyle = "thin",
+        fgFill = "#84EAB3"),
+      rows = which(x = paper_station_log$Comments == "new station:") + 2,
+      cols = 1:ncol(x = paper_station_log),
+      gridExpand = TRUE)
+
+  if (survey_short == "AI")
+    openxlsx::addStyle(
+      wb = wb,
+      sheet = sheetname,
+      style = createStyle(
+        fontName = "Arial", fontSize = 10,
+        halign = "left", valign = "center",
+        border = "TopBottomLeftRight", borderStyle = "thin",
+        fgFill = "#84EAB3"),
+      rows = which(x = paper_station_log$Comments == "new station:") + 2,
+      cols = ncol(x = paper_station_log),
+      gridExpand = TRUE)
+
+  openxlsx::addStyle(
+    wb = wb,
+    sheet = sheetname,
+    style = createStyle(
+      fontName = "Arial", fontSize = 10,
+      halign = "left", valign = "center",
+      border = "TopBottomLeftRight", borderStyle = "thin"),
+    rows = which(x = paper_station_log$Comments == "Alt. station for") + 2,
+    cols = ncol(x = paper_station_log),
+    gridExpand = TRUE)
 
   ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ##   Set column widths and row heights. Adjust as needed.
@@ -241,7 +305,7 @@ for (ipage in 1:length(x = vessel_names)) { ## Loop over vessels -- start
   ## Station records
   openxlsx::setRowHeights(wb = wb,
                           sheet = sheetname,
-                          rows = 3:(nrow(x = paper_station_log) +
+                          rows = 3:(nrow(x = paper_station_log)*2 +
                                       page_break_interval),
                           heights = 25)
 
@@ -249,7 +313,7 @@ for (ipage in 1:length(x = vessel_names)) { ## Loop over vessels -- start
   openxlsx::setRowHeights(wb = wb,
                           sheet = sheetname,
                           rows = seq(from = 1,
-                                     to = nrow(x = paper_station_log) +
+                                     to = nrow(x = paper_station_log)*2 +
                                        page_break_interval,
                                      by = page_break_interval + 2),
                           heights = 25)
@@ -258,12 +322,19 @@ for (ipage in 1:length(x = vessel_names)) { ## Loop over vessels -- start
   openxlsx::setRowHeights(wb = wb,
                           sheet = sheetname,
                           rows = seq(from = 2,
-                                     to = nrow(x = paper_station_log) +
+                                     to = nrow(x = paper_station_log)*2 +
                                        page_break_interval,
                                      by = page_break_interval + 2),
                           heights = 25)
 
+  # Page X of Y in center footer
+  setHeaderFooter(wb = wb,
+                  sheet = sheetname,
+                  footer = c(NA, "Page &[Page] of &[Pages]", NA))
+
 } ## Loop over vessels -- end
+
+
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Save workbook
