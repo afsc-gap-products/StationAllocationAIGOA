@@ -7,7 +7,6 @@
 library(sdmTMB)
 library(dplyr)
 library(ggplot2)
-library(here)
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Import data and interpolation grid
@@ -43,7 +42,19 @@ mesh <- sdmTMB::make_mesh(subset(x = goa_data_geostat,
                           xy_cols = c("X", "Y"),
                           n_knots = 500)
 
-for (species_name in species_list) {
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##   Scale depth covariate -- log-10 transformed, then zero-centered
+##   Use the mean observed depth as the zero-center
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+mean_obs_log10depth <- mean(x = log10(x = goa_data_geostat$depth_m))
+goa_data_geostat$depth_m_log10 <- log10(x = goa_data_geostat$depth_m)
+goa_data_geostat$depth_m_log10_cen <-
+  goa_data_geostat$depth_m_log10 - mean_obs_log10depth
+
+pred_grid$depth_m_log10 <- log10(x = pred_grid$depth_m)
+pred_grid$depth_m_log10_cen <- pred_grid$depth_m_log10 - mean_obs_log10depth
+
+for (species_name in species_list[13]) {
 
   cat("Working on", species_name, "\n")
 
@@ -54,7 +65,7 @@ for (species_name in species_list) {
 
   ## Fit model
   model_args <- list(
-    formula = as.formula(cpue_kg_km2 ~ 0 + year_f + s(depth_m, k = 2)),
+    formula = as.formula(cpue_kg_km2 ~ 0 + year_f + poly(depth_m_log10_cen, 2)),
     data = subset(x = goa_data_geostat,
                   subset = species == species_name),
     mesh = mesh,
@@ -68,18 +79,17 @@ for (species_name in species_list) {
     spatial = "on",
     spatiotemporal = "iid",
     anisotropy = TRUE,
-    k_folds = 10,
     parallel = FALSE,
     use_initial_fit = TRUE,
     silent = TRUE
   )
 
-  cat("Running model using depth as a covariate depth with 10-fold CV. ")
+  cat("Running model using depth as a covariate. ")
   fit_depth_cv <- do.call(what = "sdmTMB_cv", args = model_args)
   cat("NLL:", -fit_depth_cv$sum_loglik, "\n")
   saveRDS(object = fit_depth_cv, file = paste0(result_dir, "/fit_depth_cv.RDS"))
 
-  cat("Running model with no covariates with 10-fold CV. ")
+  cat("Running model with no covariates. ")
   model_args$formula <- as.formula(cpue_kg_km2 ~ 0 + year_f)
   fit_cv <- do.call(what = "sdmTMB_cv", args = model_args)
   cat("NLL:", -fit_cv$sum_loglik, "\n")
@@ -88,16 +98,26 @@ for (species_name in species_list) {
   better_model <- c("", "depth")[which.min(c(-fit_cv$sum_loglik,
                                              -fit_depth_cv$sum_loglik))]
 
-  ## Refit the model with the lower -sum_loglik across folds but first,
-  ## remove the arguments unique to the sdmTMB_cv() function because now we're
-  ## using the original sdmTMB() function
+  # Refit the model with the lower -sum_loglik across folds but first,
+  # remove the arguments unique to the sdmTMB_cv() function because now we're
+  # using the original sdmTMB() function
   model_args$k_folds <- model_args$parallel <- model_args$use_initial_fit <- NULL
   if (better_model == "depth") model_args$formula <-
-    as.formula(cpue_kg_km2 ~ 0 + year_f + s(depth_m, k = 2))
+    as.formula(cpue_kg_km2 ~ 0 + year_f + poly(depth_m_log10_cen, 2))
   fit <- do.call(what = "sdmTMB", args = model_args)
   saveRDS(object = fit, file = paste0(result_dir, "/fit.RDS"))
 
-  ## Predict density and create simulated data on the interpolation grid
+  ## If depth is a covariate in the better model, save the marginal effects
+  if (better_model == "depth") {
+    sdmTMB::visreg_delta(fit,
+                         xvar = "depth_m_log10_cen",
+                         model = 2,
+                         scale = "response",
+                         plot = F) |>
+      saveRDS(file = paste0(result_dir, "/depth_effect.RDS"))
+  }
+
+  # Predict density and create simulated data on the interpolation grid
   cat("Predicting over interpolation grid\n")
   p <- predict(fit, newdata = pred_grid, return_tmb_object = TRUE)
   saveRDS(predict(fit, newdata = pred_grid, type = "response"),
@@ -108,7 +128,7 @@ for (species_name in species_list) {
   saveRDS(sim_data, file = paste0(result_dir, "/sim_data.RDS"))
   rm(sim_data); gc()
 
-  ## Plot predicted density maps and fit diagnostics ----
+  # Plot predicted density maps and fit diagnostics ----
   # q-q plot
   cat("Running model diagnostics\n")
   pdf(file = paste0(result_dir, "/qq.pdf"), width = 5, height = 5)
@@ -132,6 +152,7 @@ for (species_name in species_list) {
   ggsave(file = paste0(result_dir, "/residuals_map.pdf"),
          height = 9, width = 6.5, units = "in")
 
+  # Plot prediected densities
   ggplot(p$data, aes(X, Y, fill = exp(est1 + est2))) +
     geom_tile() +
     scale_fill_viridis_c(trans = "sqrt", name = "") +
@@ -141,5 +162,6 @@ for (species_name in species_list) {
     theme_bw()
   ggsave(file = paste0(result_dir, "/predictions_map.pdf"),
          height = 9, width = 6.5, units = "in")
+
   cat("Finished with", species_name, "\n\n")
 }

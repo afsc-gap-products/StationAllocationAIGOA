@@ -4,11 +4,18 @@
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ## Import libraries
-library(akgfmaps); library(terra); library(sf)
+library(akgfmaps) # version 4.1.2
+library(terra)
+library(sf)
 
 ## Import bathymetry
 goa_bathy <-
   terra::rast(x = "//AKC0SS-n086/AKC_PubliC/Dropbox/Zimm/GEBCO/GOA/goa_bathy")
+
+## Import catch and effort dataset to constrain the bathymetry bounds of the
+## interpolation grid
+goa_data_geostat <-
+  read.csv(file = "data/GOA/sdmtmb_data/goa_data_geostat.csv")
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Create 2-nmi grid within the 2025 GOA footprint
@@ -36,15 +43,17 @@ goa_grid <-
   ## Intersect with the footprint
   terra::intersect(goa_footprint_2025)
 
-## Pull the centroids of each gridcell
+## Extract the bathymetry value from the centroids of each grid cell
 cell_centroids <- terra::centroids(x = goa_grid, inside = TRUE) |>
   terra::intersect(y = terra::vect(goa_strata_2025)[, "STRATUM"] )
 cell_centroids$depth_m <-
   terra::extract(x = goa_bathy, y = cell_centroids)$GOA_bathy
 
+## Filter depths between the min/max of the observed dataset
+
 ## Attach the centroids (in UTMs)
 goa_grid_df <- data.frame(stratum = cell_centroids$STRATUM,
-                          depth_m = cell_centroids_depth$GOA_bathy,
+                          depth_m = cell_centroids$depth_m,
                           cell_centroids |> terra::crds())
 names(x = goa_grid_df) <- toupper(x = names(x = goa_grid_df))
 
@@ -57,9 +66,10 @@ goa_grid_df[, c("LON", "LAT")] <-
 ## Calculate area of each sampling unit
 goa_grid_df$AREA_KM2 <- terra::expanse(x = goa_grid) / 1e6
 
-## Filter out cells that have depths > 700 or < 0 or NA
+## Filter out cells that 1) are NA, 2) are deeper than 700 m, or 3)
+## are shallower than the shallowest observed depth
 goa_grid_df <- goa_grid_df[
-  -which(cell_centroids$depth_m < 0 |
+  -which(cell_centroids$depth_m < min(x = goa_data_geostat$depth_m) |
            cell_centroids$depth_m > 700 |
            is.na(x = cell_centroids$depth_m)
   ),
