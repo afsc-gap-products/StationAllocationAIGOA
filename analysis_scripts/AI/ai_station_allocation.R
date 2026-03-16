@@ -23,6 +23,9 @@ n_cut <- c(-20, -40)
 vessel_ids <- c(176, 148)
 output_dir <- paste0("Y:/RACE_GF/ALEUTIAN/AI ", current_year,
                      "/Station Allocation/")
+race_survey_app_directory <-
+  paste0("Y:/RACE_GF/RACE_Survey_App/files/Station info/AI_GOA/",
+         "Station Allocation/AI/")
 n_allocaton_with_bonus <- n_allocation + n_bonus
 set.seed(seed = current_year)
 
@@ -435,6 +438,12 @@ xlsx::write.xlsx(
   append = TRUE
 )
 
+## Copy station allocation spreadsheet to the RACE Survey app
+file.copy(from = paste0(output_dir, "ai_", current_year, "_station_allocation_",
+                        n_allocation, "stn.xlsx"),
+          to = paste0(race_survey_app_directory, "ai_", current_year,
+                      "_station_allocation_", n_allocation, "stn.xlsx"))
+
 ## Next, output the location of the assigned stations as a geopackage for
 ## charts
 sf::write_sf(
@@ -443,28 +452,3 @@ sf::write_sf(
                n_allocation, "stn.gpkg")
 )
 
-
-merge(x = ai_hauls |>
-        subset(select = c(STATIONID, CRUISE, STRATUM, PERFORMANCE,
-                          HAUL_TYPE, ACCESSORIES, ABUNDANCE_HAUL)),
-      by.x = c( "STRATUM", "STATIONID"),
-      y = picked_stns |> subset(subset = STATION_TYPE == "assigned"),
-      by.y = c( "STRATUM", "STATION")) |>
-  merge(y = ai_grid_gis |>
-          subset(subset = is.na(x = TRAWLABLE),
-                 select = c(STATION, STRATUM, TRAWLABLE)),
-        by.x = c( "STRATUM", "STATIONID"),
-        by.y = c( "STRATUM", "STATION"))
-
-
-merge(x = ai_hauls |>
-        subset(select = c(STATIONID, CRUISE, STRATUM, PERFORMANCE,
-                          HAUL_TYPE, ACCESSORIES, ABUNDANCE_HAUL)),
-      by.x = c( "STRATUM", "STATIONID"),
-      y = picked_stns |> subset(subset = STATION_TYPE == "assigned"),
-      by.y = c( "STRATUM", "STATION")) |>
-  merge(y = ai_grid_gis |>
-          subset(subset = is.na(x = TRAWLABLE),
-                 select = c(STATION, STRATUM, TRAWLABLE)),
-        by.x = c( "STRATUM", "STATIONID"),
-        by.y = c( "STRATUM", "STATION")) |> subset(select = c( "STRATUM", "STATIONID", "VESSEL")) |> unique()
