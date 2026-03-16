@@ -6,4 +6,5 @@
 ^analysis_scripts/
 ^presentations/
 ^R/deprecated functions
-temp
+^temp$
+^vignettes$
