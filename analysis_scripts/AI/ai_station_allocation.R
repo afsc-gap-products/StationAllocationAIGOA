@@ -85,11 +85,11 @@ ai_grid_gis <-
                 FROM AI.AIGRID_GIS"),
         by = c("STATION", "STRATUM"))
 
-sf::write_sf(ai_grid_gis, dsn = paste0(output_dir, "aigridgis.gpkg"))
+# sf::write_sf(ai_grid_gis, dsn = paste0(output_dir, "aigridgis.gpkg"))
 
 ai_hauls <- RODBC::sqlQuery(channel = channel,
-                            query = paste0("SELECT * FROM RACEBASE.HAUL
-                WHERE REGION = 'AI' "))
+                            query = "SELECT * FROM RACEBASE.HAUL
+                WHERE REGION = 'AI'")
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##   Import price data from COAR. Because there is a species complex, it is
@@ -304,7 +304,7 @@ station_allocation <-
 ##   Randomly draw stations based on the allocation, assign to Vessels
 ##   Turn the centroids of the stations into a spatial object
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-picked_stns_pts <-
+picked_stns <-
   StationAllocationAIGOA::draw_strs_stations(
     stn_allocation =
       data.frame(stratum = names(x = allocation$ms_allocation),
@@ -325,59 +325,54 @@ picked_stns_pts <-
   dplyr::summarise() %>%
   sf::st_centroid(of_largest_polygon = TRUE)
 
-picked_stns_pts[, c("LONGITUDE", "LATITUDE")] <-
-  picked_stns_pts |> sf::st_transform(crs = "EPSG:4326") |> sf::st_coordinates()
+picked_stns[, c("LONGITUDE", "LATITUDE")] <-
+  picked_stns |> sf::st_transform(crs = "EPSG:4326") |> sf::st_coordinates()
 
-# picked_stns_pts$LONGITUDE <-
-#   ifelse(test = picked_stns_pts$LONGITUDE > 0,
-#          yes = picked_stns_pts$LONGITUDE - 360,
-#          no = picked_stns_pts$LONGITUDE)
-#
-# plot(LATITUDE ~ LONGITUDE, data = picked_stns_pts,
-#      pch = 16,
-#      col = c("176" = "red", "148" = "black")[paste(picked_stns_pts$VESSEL)])
-# plot(st_geometry(ai_land), add = TRUE)
-#
-# ai_land <- akgfmaps::get_base_layers(select.region = 'ai',
-#                                      set.crs = "EPSG:4326",
-#                                      split.land.at.180 = TRUE)$akland
-# st_geometry(ai_land)
+# picked_stns$LONGITUDE <-
+#   ifelse(test = picked_stns$LONGITUDE > 0,
+#          yes = picked_stns$LONGITUDE - 360,
+#          no = picked_stns$LONGITUDE)
+
+plot(LATITUDE ~ LONGITUDE, data = picked_stns,
+     pch = 16,
+     col = c("176" = "red", "148" = "black")[paste(picked_stns$VESSEL)])
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##  Create shapefile of prescribed stations
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-picked_stns <- rbind(
-  data.frame(st_drop_geometry(x = picked_stns_pts),
-             STATION_TYPE = "assigned"),
-  ## Append New Stations
-  apply(X = station_allocation |> subset(subset = new_stn > 0),
-        MARGIN = 1,
-        FUN = function(x)
-          data.frame(STATION = NA,
-                     STRATUM = rep(x["stratum"],
-                                   x["new_stn"]),
-                     STRATUM_TYPE = x["strata_type"])
+picked_stns <-
+  data.frame(sf::st_drop_geometry(picked_stns),
+             STATION_TYPE = 'assigned') |>
+  rbind(
+    ## Append New Stations
+    apply(X = station_allocation |> subset(subset = new_stn > 0),
+          MARGIN = 1,
+          FUN = function(x)
+            data.frame(STATION = NA,
+                       STRATUM = rep(x["stratum"],
+                                     x["new_stn"]),
+                       STRATUM_TYPE = x["strata_type"])
 
-  ) |>
-    do.call(what = "rbind") |>
-    StationAllocationAIGOA::assign_stations_to_vessels(order_by = "STRATUM_TYPE") |>
-    cbind(LONGITUDE = NA, LATITUDE = NA, STATION_TYPE = "new") |>
-    subset(select = -STRATUM_TYPE),
+    ) |>
+      do.call(what = "rbind") |>
+      StationAllocationAIGOA::assign_stations_to_vessels(order_by = "STRATUM_TYPE") |>
+      cbind(LONGITUDE = NA, LATITUDE = NA, STATION_TYPE = "new") |>
+      subset(select = -STRATUM_TYPE),
 
-  ## Append Bonus Stations
-  apply(X = station_allocation |> subset(subset = bonus_stn > 0),
-        MARGIN = 1,
-        FUN = function(x)
-          data.frame(STATION = NA,
-                     STRATUM = rep(x["stratum"],
-                                   x["bonus_stn"]),
-                     VESSEL = NA,
-                     LONGITUDE = NA,
-                     LATITUDE = NA,
-                     STATION_TYPE = "bonus")
-  ) |>
-    do.call(what = "rbind")
-)
+    ## Append Bonus Stations
+    apply(X = station_allocation |> subset(subset = bonus_stn > 0),
+          MARGIN = 1,
+          FUN = function(x)
+            data.frame(STATION = NA,
+                       STRATUM = rep(x["stratum"],
+                                     x["bonus_stn"]),
+                       VESSEL = NA,
+                       LONGITUDE = NA,
+                       LATITUDE = NA,
+                       STATION_TYPE = "bonus")
+    ) |>
+      do.call(what = "rbind")
+  )
 
 ## Randomly replace allocated stations with new stations
 removed_stns <- c()
@@ -446,9 +441,10 @@ file.copy(from = paste0(output_dir, "ai_", current_year, "_station_allocation_",
 
 ## Next, output the location of the assigned stations as a geopackage for
 ## charts
-sf::write_sf(
-  obj = picked_stns_pts,
-  dsn = paste0(output_dir, "ai_", current_year, "_station_allocation_",
-               n_allocation, "stn.gpkg")
-)
+sf::st_as_sf(x = picked_stns |> subset(subset = STATION_TYPE == 'assigned'),
+             coords = c("LONGITUDE", "LATITUDE"),
+             crs = 4326) |>
+  sf::st_shift_longitude() |>
+  sf::write_sf(dsn = paste0(output_dir, "ai_", current_year,
+                            "_station_allocation_", n_allocation, "stn.gpkg"))
 
