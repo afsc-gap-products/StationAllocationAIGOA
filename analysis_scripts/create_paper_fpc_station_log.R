@@ -24,7 +24,7 @@ station_allocation_path <- paste0("Y:/RACE_GF/", survey, "/",
                                   tolower(x = survey_short), "_", year,
                                   "_station_allocation_", total_n, "stn.xlsx")
 output_path <- paste0("Y:/RACE_GF/RACE_Survey_App/files/Station info/AI_GOA/",
-                      "Station logs/Paper logs/", survey_short, "/",
+                      "Station logs/", survey_short, "/",
                       year, " ", survey_short, " FPC Station Logs.xlsx")
 
 goa_allocated_stations <- openxlsx::read.xlsx(
@@ -54,32 +54,42 @@ for (ipage in 1:length(x = vessel_names)) { ## Loop over vessels -- start
                    yes = goa_allocated_stations$LONGITUDE - 360,
                    no = goa_allocated_stations$LONGITUDE),
             decreasing = ifelse(test = survey_short == "AI",
-                                yes = FALSE,
+                                # if AI, the order is from E--> W
+                                yes = TRUE,
+                                # if GOA the order is from W --> E
                                 no = FALSE)),
     ] |> subset(VESSEL == names(x = ivessel) | STATION_TYPE == "bonus")
 
-  ## Reorder stations so that the bonus and new stations are interspersed
-  # Use ave() to get the row count within each STRATUM
-  row_idx <- ave(seq_len(nrow(subset_allocation)),
-                 subset_allocation$STRATUM,
-                 FUN = seq_along)
 
-  # Define the priority logic
-  priority <- ifelse(row_idx == 1,
-                     yes = 1,
-                     no = ifelse(
-                       test = subset_allocation$STATION_TYPE %in%
-                         c("bonus", "new"),
-                       yes = 2,
-                       no = 3))
+  # Assuming your dataframe is named 'df' and is already sorted by longitude
 
-  #Reorder the dataframe: sort by STRATUM first, then by our custom priority
-  subset_allocation <- subset_allocation[
-    order(subset_allocation$STRATUM, priority),
-  ]
+  # 1. Add a global tracking index to remember the original longitudinal order
+  subset_allocation$original_order <- seq_len(nrow(x = subset_allocation))
 
-  #Clear row names
-  rownames(x = subset_allocation) <- NULL
+  # 2. Calculate the custom sort key within each stratum using ave()
+  # ave() applies a function to groups but returns a vector of the original length
+  subset_allocation$sort_key <-
+    ave(seq_len(nrow(x = subset_allocation)),
+        subset_allocation$STRATUM,
+        FUN = function(x) {
+    # Subset the original row indices for this stratum
+    types <- subset_allocation$STATION_TYPE[x]
+
+    # Find the original row index of the first 'assigned' station in this stratum
+    first_assigned_idx <- x[which(types == "assigned")[1]]
+
+    # Assign the keys: assigned stations keep their original global index,
+    # bonus/new stations get placed immediately after that first assigned index
+    ifelse(types == "assigned", x, first_assigned_idx + 0.5)
+  })
+
+  # 3. Sort the entire dataframe globally by this new key
+  subset_allocation <- subset_allocation[order(subset_allocation$sort_key), ]
+
+  # 4. Clean up the helper columns
+  subset_allocation$original_order <- NULL
+  subset_allocation$sort_key <- NULL
+  rownames(subset_allocation) <- NULL
 
   # Add empty rows for alternate stations
   alt_rows <- subset_allocation
@@ -87,6 +97,7 @@ for (ipage in 1:length(x = vessel_names)) { ## Loop over vessels -- start
 
   subset_allocation <- rbind(subset_allocation,
                              alt_rows)
+
   ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ##   Take the allocation table and format into the form of the station log
   ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
