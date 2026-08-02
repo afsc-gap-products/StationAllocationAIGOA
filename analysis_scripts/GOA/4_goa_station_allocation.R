@@ -1,7 +1,7 @@
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Project:       GOA Station Allocation
 ## Author:        Zack Oyafuso (zack.oyafuso@noaa.gov)
-## Description:   For year 2025
+## Description:   For year 2027
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ## Restart R Session before running
@@ -11,6 +11,8 @@ rm(list = ls())
 ##   Import Packages, laning areas around Kodiak
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # devtools::install_github(repo = "afsc-gap-products/StationAllocationAIGOA")
+# devtools::install_github("afsc-gap-products/akgfmaps", build_vignettes = TRUE)
+# install.packages("xlsx")
 library(StationAllocationAIGOA)
 library(terra)
 library(akgfmaps)
@@ -20,37 +22,42 @@ library(xlsx)
 laning_area <-
   terra::vect(x = "data/GOA/shapefiles_akgfmaps/goa_laning_area.shp")
 
-ca_border <-
-  terra::vect(x = "data/GOA/shapefiles_akgfmaps/CanadaBorder.shp")
+# ca_border <-
+#   terra::vect(x = "data/GOA/shapefiles_akgfmaps/CanadaBorder.shp")
 
-goa_stations <-
-  terra::vect(x = "data/GOA/shapefiles_akgfmaps/goa_stations_2025.gpkg")
-goa_stations[, c("x", "y")] <-
-  terra::crds(x = terra::centroids(x = goa_stations,
-                                   inside = TRUE))
-goa_stations[, c("LONGITUDE", "LATITUDE")] <-
-  terra::crds(x = terra::project(terra::centroids(x = goa_stations,
-                                                  inside = TRUE),
-                                 "EPSG:4326"))
+goa_base_layers <-
+  akgfmaps::get_base_layers(select.region = "goa",
+                            design.year = 2025,
+                            set.crs = 4326)
+goa_stations <- goa_base_layers$survey.grid
+goa_strata <- goa_base_layers$survey.strata
 
-goa_strata <-
-  terra::vect(x = "data/GOA/shapefiles_akgfmaps/goa_strata_2025.gpkg")
+# goa_stations <-
+# terra::vect(x = "data/GOA/shapefiles_akgfmaps/goa_stations_2025.gpkg")
+# goa_stations[, c("x", "y")] <-
+# terra::crds(x = terra::centroids(x = goa_stations,
+# inside = TRUE))
+# goa_stations[, c("LONGITUDE", "LATITUDE")] <-
+# terra::crds(x = terra::project(terra::centroids(x = goa_stations,
+# inside = TRUE),
+# "EPSG:4326"))
 
 ## `goa_base` are basic shape layers from the akgfmaps package
-goa_base <- akgfmaps::get_base_layers(select.region = "goa",
-                                      set.crs = "EPSG:3338")
+# goa_base <- akgfmaps::get_base_layers(select.region = "goa",
+#                                       set.crs = "EPSG:3338")
 
-output_dir <- "G:/GOA/GOA 2025/Station Allocation/"
+output_dir <- "G:/GOA/GOA 2027/Station Allocation/"
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##  Calculate a 520 station allocation
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 shallow_boat <- 176 # Alaska Provider
 deep_boat <- 148    # Ocean Explorer
-current_year <- 2025
-total_n <- 450
+current_year <- 2027
+total_n <- 500
 
-goa_stn_allocation <- StationAllocationAIGOA::goa_allocate_stations(
+goa_stn_allocation <- ##StationAllocationAIGOA::
+  goa_allocate_stations(
   n = total_n,
   min_n_per_stratum = 4,
   survey_year = current_year
@@ -217,8 +224,8 @@ table(stn_allocation$STRATUM, stn_allocation$VESSEL)
 ##   Canadian waters
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ca_stns <- terra::intersect(x = goa_stations[goa_stations$STATION %in%
-                                    stn_allocation$STATION, ],
-                 y = ca_border)
+                                               stn_allocation$STATION, ],
+                            y = ca_border)
 
 ca_stns <- data.frame(
   CA_STATION = ca_stns$STATION,

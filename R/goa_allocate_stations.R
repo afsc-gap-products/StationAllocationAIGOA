@@ -63,7 +63,7 @@ goa_allocate_stations <-
            ),
            max_iter = 5000,
            trawl = c("Y", "N", "UNK")[c(1, 3)],
-           planning_years = c(1996, 1999, seq(from = 2003, to = 2023, by = 2)),
+           planning_years = c(1996, 1999, seq(from = 2003, to = 2025, by = 2)),
            cv_threshold = 0,
            survey_year = 2025){
 
@@ -87,7 +87,7 @@ goa_allocate_stations <-
     ##   Constants
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     dens <- StationAllocationAIGOA::D_gct
-    optim_df <- StationAllocationAIGOA::optim_df
+    optim_df <- StationAllocationAIGOA::pred_grid
     spp_idx <- match(species, dimnames(dens)[[2]] )
     ns_opt <- length(x = spp_idx)
     n_cells <- dim(x = dens)[1]
@@ -95,16 +95,16 @@ goa_allocate_stations <-
                       yes = 1, no = dim(x = dens)[3])
 
     ## update dens with species and year filters
-    dens <- array(data = dens[, spp_idx, paste(planning_years)],
+    dens <- array(data = dens[, spp_idx, paste0("year_", planning_years)],
                   dim = c(n_cells, ns_opt, n_years))
 
-    stratum_names <- with(StationAllocationAIGOA::goa_stratum_boundaries,
-                          as.character(x = STRATUM[USED]))
-    NMFS_area <- with(StationAllocationAIGOA::goa_stratum_boundaries,
-                      NMFS_AREA[USED])
-
-    goa_stations <- subset(x = StationAllocationAIGOA::goa_stations,
-                           subset = STRATUM %in% stratum_names)
+    # stratum_names <- with(StationAllocationAIGOA::goa_stratum_boundaries,
+                          # as.character(x = STRATUM[USED]))
+    # NMFS_area <- with(StationAllocationAIGOA::goa_stratum_boundaries,
+    #                   NMFS_AREA[USED])
+    #
+    # goa_stations <- subset(x = StationAllocationAIGOA::goa_stations,
+                           # subset = STRATUM %in% stratum_names)
 
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     ##   Single species CV: lower CV bounds for MS allocation
@@ -130,14 +130,16 @@ goa_allocate_stations <-
                        sapply(X = split(x = x,
                                         f = optim_df$STRATUM),
                               FUN = function(xx)
-                                stats::sd(x = as.vector(xx))))[stratum_names,]
+                                stats::sd(x = as.vector(xx))))
     strs_mean <- apply(X = dens,
                        MARGIN = 2,
                        FUN = function(x)
                          sapply(X = split(x = x,
                                           f = optim_df$STRATUM),
                                 FUN = function(xx)
-                                  mean(x = as.vector(xx))))[stratum_names,]
+                                  mean(x = as.vector(xx))))
+
+    stratum_names <- paste(sort(x = unique(x = optim_df$STRATUM)))
 
     strs_stats <- cbind(data.frame(
       STRATO = 1:length(x = stratum_names),
@@ -289,27 +291,27 @@ goa_allocate_stations <-
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     ## Randomly drawn stations
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    drawn_stations <- c()
-
-    for (i in 1:length(x = ms_allocation)) { ## Loop over strata -- start
-
-      #Set seed
-      set.seed(survey_year)
-      istratum <- names(x = ms_allocation)[i]
-
-      ## available stations are those that are trawlable and > 5 km^2
-      available_stations <- with(goa_stations,
-                                 which(STRATUM == istratum &
-                                         TRAWLABLE %in% trawl &
-                                         AREA_KM2 >= 5))
-      temp_samples <- sample(x = available_stations,
-                             size = ms_allocation[i],
-                             prob = goa_stations$AREA_KM2[available_stations],
-                             replace = FALSE)
-      drawn_stations <- c(drawn_stations, temp_samples)
-    } ## Loop over strata -- end
-
-    drawn_stations <- goa_stations[drawn_stations, ]
+    # drawn_stations <- c()
+    #
+    # for (i in 1:length(x = ms_allocation)) { ## Loop over strata -- start
+    #
+    #   #Set seed
+    #   set.seed(survey_year)
+    #   istratum <- names(x = ms_allocation)[i]
+    #
+    #   ## available stations are those that are trawlable and > 5 km^2
+    #   available_stations <- with(goa_stations,
+    #                              which(STRATUM == istratum &
+    #                                      TRAWLABLE %in% trawl &
+    #                                      AREA_KM2 >= 5))
+    #   temp_samples <- sample(x = available_stations,
+    #                          size = ms_allocation[i],
+    #                          prob = goa_stations$AREA_KM2[available_stations],
+    #                          replace = FALSE)
+    #   drawn_stations <- c(drawn_stations, temp_samples)
+    # } ## Loop over strata -- end
+    #
+    # drawn_stations <- goa_stations[drawn_stations, ]
 
     return(
       list(
@@ -322,8 +324,7 @@ goa_allocate_stations <-
         ms_allocation = data.frame(stratum = stratum_names,
                                    nmfs_area = NMFS_area,
                                    ms_allocation = ms_allocation,
-                                   row.names = NULL),
-        drawn_stations = data.frame(drawn_stations, row.names = NULL)
+                                   row.names = NULL)
       )
     )
   }
